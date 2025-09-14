@@ -82,6 +82,35 @@ def is_option(symbol: str, row: Dict[str, str]) -> bool:
             return True
     return False
 
+# ---------- Numeric Parsing Helpers ----------
+
+def _parse_money(value: str) -> Optional[float]:
+    """Parse a currency / numeric string to float.
+
+    Handles examples: "$1,491,046.56", "(123.45)", "1491046.56", "$0", "-1,234".
+    Returns None if parsing fails or value empty.
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    if s == "":
+        return None
+    neg = False
+    if s.startswith('(') and s.endswith(')'):
+        neg = True
+        s = s[1:-1]
+    # Remove currency symbols and thousands separators & percent if present
+    s = s.replace('$', '').replace(',', '').replace('%', '')
+    # Some exports may include trailing spaces or plus signs
+    s = s.strip().rstrip('+')
+    if s in ('', '-', '.'):
+        return None
+    try:
+        val = float(s)
+        return -val if neg else val
+    except Exception:
+        return None
+
 # ---------- Import Logic ----------
 
 def parse_args():
@@ -196,19 +225,15 @@ def main():
         cost_basis = None
         if 'total_cost_col' in locals() and total_cost_col:
             raw_total = row.get(total_cost_col)
-            if raw_total:
-                try:
-                    cost_basis = float(str(raw_total).replace(',', ''))
-                except Exception:
-                    pass
+            parsed = _parse_money(raw_total)
+            if parsed is not None:
+                cost_basis = parsed
         elif cost_col:
             raw_cost = row.get(cost_col)
             if raw_cost:
-                try:
-                    val = float(str(raw_cost).replace(',', ''))
+                val = _parse_money(raw_cost)
+                if val is not None:
                     cost_basis = (val / qty_val) if args.cost_is_total and qty_val != 0 else val
-                except Exception:
-                    pass
 
         # date
         opened_at = None
