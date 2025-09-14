@@ -32,6 +32,7 @@ import argparse
 import concurrent.futures as cf
 import datetime as dt
 import math
+import sqlite3
 import sys
 from dataclasses import dataclass, asdict
 from typing import List, Optional, Dict, Any
@@ -442,20 +443,45 @@ def first_failure_reason(row: pd.Series, cfg: ScreenerConfig) -> Optional[str]:
             return f"{label}: invalid"
     return None
 
+def _load_instruments_from_db(db_path: Optional[str]) -> List[str]:
+    if not db_path:
+        return []
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        rows = cur.execute("SELECT ticker FROM instruments WHERE active=1 ORDER BY ticker").fetchall()
+        conn.close()
+        return [r[0].upper() for r in rows]
+    except Exception:
+        return []
+
 def load_universe(args) -> List[str]:
+    # New option: if user passes --universe db (or sp500 but DB available) we pull from instruments
+    if args.universe == 'db':
+        db_list = _load_instruments_from_db(args.db_path)
+        if db_list:
+            return db_list
+        print("Warning: --universe db requested but instruments table empty; falling back to sp500 scrape")
+        return fetch_sp500_universe()
     if args.universe == 'sp500':
+        # Prefer DB instruments if present (user already populated) unless --no-db-universe flag provided
+        if not getattr(args, 'no_db_universe', False):
+            db_list = _load_instruments_from_db(args.db_path)
+            if db_list:
+                return db_list
         return fetch_sp500_universe()
     elif args.universe == 'custom' and args.universe_file:
         with open(args.universe_file, 'r') as f:
             syms = [line.strip() for line in f if line.strip()]
         return syms
     else:
-        # default minimal sample
         return ['AAPL', 'MSFT', 'KO', 'PG', 'WMT', 'BRK-B', 'JNJ']
 
 def main():
     parser = argparse.ArgumentParser(description="Buffett-style stock screener")
-    parser.add_argument('--universe', choices=['sp500', 'custom'], default='sp500')
+    parser.add_argument('--universe', choices=['sp500', 'custom', 'db'], default='sp500')
+    parser.add_argument('--db-path', help='SQLite DB path (used when universe=db or to prefer populated instruments)')
+    parser.add_argument('--no-db-universe', action='store_true', help='Force ignoring DB instruments even if present when universe=sp500')
     parser.add_argument('--universe-file', help='Path to a text file of tickers (one per line)')
     parser.add_argument('--threads', type=int, default=4)
     parser.add_argument('--output', default='buffett_screen_results.csv', help='Output CSV path')

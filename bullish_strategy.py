@@ -17,8 +17,18 @@ Notes:
 from __future__ import annotations
 
 import argparse
+import os
+import sys
+import math
+import statistics
+import time
+import concurrent.futures
+import traceback
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+from db import Database  # new import
+import sqlite3
 
 
 @dataclass
@@ -382,6 +392,25 @@ def _read_tickers(path: Optional[str], tickers: Optional[List[str]]) -> List[str
     return []
 
 
+def _load_instruments_from_db(db_path: Optional[str]) -> List[str]:
+    """Return active instrument tickers from the local SQLite instruments table.
+
+    Falls back to empty list on any error (callers can then use legacy universe logic).
+    """
+    if not db_path:
+        return []
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        rows = cur.execute(
+            "SELECT ticker FROM instruments WHERE active=1 ORDER BY ticker"
+        ).fetchall()
+        conn.close()
+        return [r[0].upper() for r in rows]
+    except Exception:
+        return []
+
+
 def _write_results_txt(passed: List[TickerResult], output_file: str) -> None:
     def fmt(v, nd=2, prefix="", suffix=""):
         if v is None:
@@ -502,23 +531,24 @@ def _write_details_csv(pd, results: List[TickerResult], path: str) -> None:
     pd.DataFrame(rows).to_csv(path, index=False)
 
 
-def run_screener(
-    tickers: Iterable[str],
-    cfg: Optional[ScreenerConfig] = None,
-) -> Tuple[List[TickerResult], List[TickerResult]]:
-    cfg = cfg or ScreenerConfig()
-    # Concurrency for I/O-bound downloads
+def run_screener(tickers: List[str], cfg: ScreenerConfig, db_path: Optional[str] = None, cli_args: Optional[argparse.Namespace] = None) -> Tuple[List[TickerResult], List[TickerResult]]:
+    """Core execution for breakout screener.
+
+    Returns (passed, failed) lists.
+    Optionally logs to sqlite if db_path provided.
+    """
     from concurrent.futures import ThreadPoolExecutor
 
     tickers = list(dict.fromkeys([t.strip().upper() for t in tickers if t and t.strip()]))
-    results: List[TickerResult] = []
     if not tickers:
         return [], []
 
+    results: List[TickerResult] = []
     max_workers = max(1, min(cfg.max_workers, len(tickers)))
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         for res in ex.map(lambda sym: _evaluate_ticker(sym, cfg), tickers):
             results.append(res)
+
     # Enrich names for qualifiers if requested
     if results and cfg.lookup_names:
         try:
@@ -543,6 +573,49 @@ def run_screener(
 
     passed = sorted([r for r in results if r.passed], key=lambda r: r.metrics.get("score", 0), reverse=True)
     failed = [r for r in results if not r.passed]
+
+    # Optional DB logging
+    if db_path:
+        try:
+            db = Database(db_path)
+            db.connect()
+            params_dict = {}
+            if cli_args:
+                # capture CLI args excluding paths
+                for k, v in vars(cli_args).items():
+                    if k not in ("db_path", "tickers_file"):
+                        params_dict[k] = v
+            else:
+                params_dict = cfg.__dict__.copy()
+            run_id = db.start_run(
+                strategy_code="bullish_breakout",
+                version="1.0",
+                params=params_dict,
+                universe_source=(cli_args.tickers_file if (cli_args and cli_args.tickers_file) else "list"),
+                universe_size=len(tickers),
+                min_score=cfg.min_score,
+            )
+            for r in (passed + failed):
+                try:
+                    db.log_result(
+                        run_id=run_id,
+                        strategy_code="bullish_breakout",
+                        ticker=r.ticker,
+                        passed=r.passed,
+                        score=r.metrics.get("score", 0.0),
+                        classification=r.metrics.get("recommendation"),
+                        reasons=r.reasons,
+                        metrics=r.metrics,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    print(f"[DB] log_result error {r.ticker}: {e}")
+            try:
+                db.finalize_run(run_id)
+            except Exception as e:  # noqa: BLE001
+                print(f"[DB] finalize_run error: {e}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[DB] run logging disabled: {e}")
+
     return passed, failed
 
 
@@ -563,27 +636,33 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--require-52w-high", action="store_true", help="Require 52-week high breakout instead of prior 6-month high")
     parser.add_argument("--period", default="2y", help="Data period for yfinance (default 2y)")
     parser.add_argument("--interval", default="1d", help="Data interval for yfinance (default 1d)")
+    parser.add_argument("--db-path", help="Path to sqlite database file for logging runs")
 
     args = parser.parse_args(argv)
 
     tickers = _read_tickers(args.tickers_file, args.tickers)
+    # New default: attempt DB instruments when no explicit tickers
     if not tickers:
-        # Load a predefined universe
-        try:
-            pd, _, yf = _lazy_imports()
-            if args.universe == "sp500" and hasattr(yf, "tickers_sp500"):
-                tickers = list(yf.tickers_sp500())
-            elif args.universe == "dow30" and hasattr(yf, "tickers_dow"):
-                tickers = list(yf.tickers_dow())
-            elif args.universe == "nasdaq" and hasattr(yf, "tickers_nasdaq"):
-                # Warning: this is very large and may be slow
-                tickers = list(yf.tickers_nasdaq())
-            else:
-                print("Could not load universe tickers. Please provide --tickers or --tickers-file.")
+        db_universe = _load_instruments_from_db(args.db_path)
+        if db_universe:
+            tickers = db_universe
+            print(f"Loaded {len(tickers)} tickers from DB instruments table.")
+        else:
+            # Legacy fallback to yfinance static universes
+            try:
+                pd, _, yf = _lazy_imports()
+                if args.universe == "sp500" and hasattr(yf, "tickers_sp500"):
+                    tickers = list(yf.tickers_sp500())
+                elif args.universe == "dow30" and hasattr(yf, "tickers_dow"):
+                    tickers = list(yf.tickers_dow())
+                elif args.universe == "nasdaq" and hasattr(yf, "tickers_nasdaq"):
+                    tickers = list(yf.tickers_nasdaq())
+                else:
+                    print("Could not load universe tickers. Please provide --tickers or --tickers-file.")
+                    return 2
+            except Exception:
+                print("Failed to load universe list and DB instruments empty. Provide --tickers or --tickers-file.")
                 return 2
-        except Exception:
-            print("Failed to load universe list. Provide --tickers or --tickers-file.")
-            return 2
 
     cfg = ScreenerConfig(
         period=args.period,
@@ -594,12 +673,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         require_52w_high=args.require_52w_high,
         max_workers=max(1, args.max_workers),
         output_file=args.output,
-    details_file=(None if (str(args.details).lower() == "none") else args.details),
-    min_score=max(0, min(100, args.min_score)),
-    lookup_names=(not args.no_lookup_names),
+        details_file=(None if (str(args.details).lower() == "none") else args.details),
+        min_score=max(0, min(100, args.min_score)),
+        lookup_names=(not args.no_lookup_names),
     )
 
-    passed, failed = run_screener(tickers, cfg)
+    passed, failed = run_screener(tickers, cfg, db_path=args.db_path, cli_args=args)
 
     # Write outputs
     _write_results_txt(passed, cfg.output_file)

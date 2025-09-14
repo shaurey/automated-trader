@@ -43,9 +43,17 @@ Dependencies: pandas, numpy, yfinance (see requirements.txt)
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Iterable
+import os
+import sys
 import math
+import statistics
+import time
+import concurrent.futures
+import traceback
+from dataclasses import dataclass
+from typing import List, Dict, Any, Optional, Tuple, Iterable
+from db import Database  # new import
+import sqlite3
 
 # ------------------------------- Data Classes -------------------------------
 
@@ -366,6 +374,18 @@ def _read_tickers(path: Optional[str], tickers: Optional[List[str]]) -> List[str
             return [ln.strip().upper() for ln in f if ln.strip() and not ln.strip().startswith("#")]
     return []
 
+def _load_instruments_from_db(db_path: Optional[str]) -> List[str]:
+    if not db_path:
+        return []
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        rows = cur.execute("SELECT ticker FROM instruments WHERE active=1 ORDER BY ticker").fetchall()
+        conn.close()
+        return [r[0].upper() for r in rows]
+    except Exception:
+        return []
+
 def _write_text(results: List[LeapResult], path: str):
     def fmt(v, nd=2, prefix="", suffix=""):
         if v is None: return "n/a"
@@ -455,26 +475,32 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--avwap-soft-max", type=float, default=8.0)
     parser.add_argument("--avwap-penalty-threshold", type=float, default=15.0)
     parser.add_argument("--avwap-penalty-points", type=int, default=5)
+    parser.add_argument("--db-path", help="Path to sqlite database file for logging runs")
 
     args = parser.parse_args(argv)
 
     tickers = _read_tickers(args.tickers_file, args.tickers)
     if not tickers:
-        # Attempt universe load through yfinance helper lists
-        try:
-            pd, _, yf = _lazy()
-            if args.universe == "sp500" and hasattr(yf, "tickers_sp500"):
-                tickers = list(yf.tickers_sp500())
-            elif args.universe == "dow30" and hasattr(yf, "tickers_dow"):
-                tickers = list(yf.tickers_dow())
-            elif args.universe == "nasdaq" and hasattr(yf, "tickers_nasdaq"):
-                tickers = list(yf.tickers_nasdaq())
-            else:
-                print("Could not load universe; provide --tickers or --tickers-file.")
+        db_universe = _load_instruments_from_db(args.db_path)
+        if db_universe:
+            tickers = db_universe
+            print(f"Loaded {len(tickers)} tickers from DB instruments table.")
+        else:
+            # Attempt universe load through yfinance helper lists
+            try:
+                pd, _, yf = _lazy()
+                if args.universe == "sp500" and hasattr(yf, "tickers_sp500"):
+                    tickers = list(yf.tickers_sp500())
+                elif args.universe == "dow30" and hasattr(yf, "tickers_dow"):
+                    tickers = list(yf.tickers_dow())
+                elif args.universe == "nasdaq" and hasattr(yf, "tickers_nasdaq"):
+                    tickers = list(yf.tickers_nasdaq())
+                else:
+                    print("Could not load universe; provide --tickers or --tickers-file.")
+                    return 2
+            except Exception:
+                print("Failed to load universe list and DB instruments empty; provide tickers explicitly.")
                 return 2
-        except Exception:
-            print("Failed to load universe list; provide tickers explicitly.")
-            return 2
 
     cfg = LeapConfig(
         period=args.period,
