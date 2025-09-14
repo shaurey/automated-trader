@@ -1,79 +1,159 @@
-# Automated Trading System
+# Automated Trading Application - Phase 1
 
-This repository scaffolds an automated trading toolkit and includes a runnable Bullish Breakout Screener.
+A modern web application for portfolio visualization and holdings management, built with FastAPI (Python) backend and Flutter web frontend.
 
-## Quickstart (Windows PowerShell)
+## 🚀 Quick Start
 
-1) (Optional) Create/activate a virtual environment
+### Prerequisites
+- Python 3.11+ with pip
+- Flutter SDK 3.x
+- Modern web browser (Chrome/Edge recommended)
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-2) Install dependencies
-
-```powershell
+### 1. Start Backend API (Terminal 1)
+```bash
+cd backend
 pip install -r requirements.txt
+python -c "import uvicorn; uvicorn.run('main:app', host='127.0.0.1', port=8001, log_level='error')"
 ```
 
-3) Run the Bullish Breakout Screener
-
-```powershell
-# Option A: Scan a predefined universe (default is S&P 500)
-python .\bullish_strategy.py --universe sp500 --output .\bullish_breakouts.txt --details .\bullish_breakouts_details.csv --min-volume-multiple 1.5 --strict-macd --require-52w-high
-
-# Option B: Provide a custom list inline
-python .\bullish_strategy.py --tickers AAPL MSFT NVDA --details .\bullish_breakouts_details.csv
-
-# Option C: Provide a file with tickers (one per line)
-python .\bullish_strategy.py --tickers-file .\portfolio_66.txt --details .\bullish_breakouts_details.csv
+### 2. Start Frontend Web App (Terminal 2)
+```bash
+cd frontend
+flutter pub get
+flutter run -d web-server --web-port 3000
 ```
 
-Flags you can tweak:
-- `--min-volume-multiple 1.0|1.5|2.0` Volume spike requirement vs 20d average.
-- `--strict-macd` Require MACD > 0 (in addition to crossover + positive histogram).
-- `--allow-overbought` Allow RSI > 80.
-- `--require-52w-high` Require breakout above prior 52-week high (vs default 6-month high).
-- `--tickers AAPL MSFT NVDA` Provide tickers inline instead of a file.
- - `--universe sp500|dow30|nasdaq` Scan a predefined universe when no tickers are provided (default `sp500`).
+### 3. Access Application
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8001
+- **API Docs**: http://localhost:8001/docs
 
-Outputs:
-- `bullish_breakouts.txt` contains only the tickers that passed all criteria.
-- `bullish_breakouts_details.csv` contains metrics and reasons for pass/fail per ticker.
+## 📊 Features
 
-## Criteria Implemented
+### Portfolio Dashboard
+- **$13.4M Portfolio** with real-time market data
+- **45 Holdings** across 10 trading accounts
+- **Interactive Charts** for sector allocation and top holdings
+- **Auto-refresh** every 30 seconds
+- **Responsive Design** for all screen sizes
 
-1. Price above SMA10, SMA50, SMA200 (daily).
-2. MACD bullish crossover today; histogram > 0; optionally MACD > 0.
-3. RSI(14) > 60 and <= 80 (unless `--allow-overbought`).
-4. Volume confirmation vs 20-day average (default 1.0x; set higher for stronger signals).
-5. Breakout above prior 6-month high (or 52-week high when `--require-52w-high`).
+### Holdings Management
+- **Detailed Position Table** with sorting and filtering
+- **Search by Ticker/Company** with real-time results
+- **Account & Sector Filtering** for focused analysis
+- **Mobile-optimized Cards** for smaller screens
+- **Real-time Gain/Loss** calculations with color coding
 
-## Files
-- `bullish_strategy.py` Screener CLI and logic.
-- `sp500_universe.py` Generate an S&P 500 ticker list for inputs to strategies.
-- `requirements.txt` Python dependencies.
-- `portfolio_66.txt` Sample tickers list (replace with your actual 66 tickers).
-- `README.md` This file.
+### Technical Features
+- **RESTful API** with FastAPI and automatic OpenAPI docs
+- **SQLite Database** with 217 instruments and real portfolio data
+- **Yahoo Finance Integration** for live market pricing
+- **Material Design 3** UI with smooth animations
+- **Error Handling** with user-friendly messages
 
-## Notes
-- Data fetched via Yahoo Finance (yfinance). Availability and accuracy can vary.
-- This is not financial advice. Use at your own risk.
+## 🛠 Architecture
 
-## Generate S&P 500 universe list
-
-```powershell
-# Ensure deps are installed
-pip install -r requirements.txt
-
-# Generate to sp500_tickers.txt using yfinance (or Wikipedia fallback)
-python .\sp500_universe.py --output .\sp500_tickers.txt --source auto
-
-# Use it with the screener
-python .\bullish_strategy.py --tickers-file .\sp500_tickers.txt --details .\bullish_breakouts_details.csv --min-volume-multiple 1.5 --strict-macd --require-52w-high
+```
+Frontend (Flutter Web)  ←→  Backend (FastAPI)  ←→  SQLite DB
+     Port 3000               Port 8001              portfolio.db
+                                 ↓
+                         Yahoo Finance API
 ```
 
-## License
+## 📁 Project Structure
 
-Specify your license here.
+```
+automated-trader/
+├── backend/                 # FastAPI backend
+│   ├── api/                # REST API endpoints
+│   ├── services/           # Business logic
+│   ├── models/             # Data models
+│   ├── database/           # Database layer
+│   └── portfolio.db        # SQLite database (303KB)
+├── frontend/               # Flutter web frontend
+│   ├── lib/
+│   │   ├── screens/        # UI screens
+│   │   ├── widgets/        # Reusable components
+│   │   ├── providers/      # State management
+│   │   ├── models/         # Data models
+│   │   └── services/       # API services
+│   └── web/                # Web build output
+└── PHASE_1_COMPLETION_REPORT.md  # Detailed documentation
+```
+
+## 🔧 Development
+
+### Backend Development
+```bash
+cd backend
+python main.py              # Development server
+python -m pytest           # Run tests
+```
+
+### Frontend Development
+```bash
+cd frontend
+flutter analyze            # Static analysis
+flutter test               # Run tests
+flutter build web          # Production build
+```
+
+### API Testing
+```bash
+# Test portfolio summary
+curl "http://localhost:8001/api/holdings/summary"
+
+# Test positions with filtering
+curl "http://localhost:8001/api/holdings/positions?limit=10"
+
+# View API documentation
+open http://localhost:8001/docs
+```
+
+## 📈 Portfolio Data
+
+- **Total Value**: $13,476,779.41
+- **Top Holdings**: MSFT ($4.5M), NVDA ($1.9M), GOOGL ($680K)
+- **Sectors**: Technology (27%), Communication (6%), Consumer (1%)
+- **Accounts**: 10 trading accounts with individual tracking
+- **Update Frequency**: Real-time via Yahoo Finance API
+
+## 🔍 API Endpoints
+
+| Endpoint | Description | Example |
+|----------|-------------|---------|
+| `GET /api/holdings/summary` | Portfolio overview | Total value, accounts, sectors |
+| `GET /api/holdings/positions` | Position details | Holdings with filtering |
+| `GET /api/holdings/accounts` | Account information | Account balances |
+| `GET /api/instruments/` | Instrument search | Security lookup |
+| `GET /health` | Health check | API status |
+
+## 🚀 Phase 2 Roadmap
+
+- **Mobile Apps**: Native iOS/Android with Flutter
+- **Real-time Streaming**: WebSocket data feeds
+- **Trade Execution**: Brokerage API integration
+- **Advanced Analytics**: Technical indicators, risk metrics
+- **Cloud Deployment**: AWS/Azure production deployment
+
+## 📝 Documentation
+
+For comprehensive documentation, see [PHASE_1_COMPLETION_REPORT.md](./PHASE_1_COMPLETION_REPORT.md)
+
+## 🐛 Issues & Support
+
+Current limitations:
+- Single-user system (no authentication)
+- Read-only portfolio data
+- Yahoo Finance rate limits may affect data updates
+- Some package dependencies have newer versions available
+
+## 📄 License
+
+This project is part of a multi-phase automated trading application development.
+
+---
+
+**Status**: Phase 1 Complete ✅  
+**Last Updated**: September 14, 2025  
+**Next Phase**: Mobile Application Development

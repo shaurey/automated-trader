@@ -1,0 +1,1 @@
+ c:\\src\\automated-trader\\frontend\\build\\web\\manifest.json:  c:\\src\\automated-trader\\frontend\\web\\index.html c:\\src\\automated-trader\\frontend\\web\\manifest.json
