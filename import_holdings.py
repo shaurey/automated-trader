@@ -157,11 +157,10 @@ def main():
     cur = con.cursor()
     ensure_tables(cur)
 
-    # Preload holdings if merging / skipping
+    # Always preload existing so we can replace instead of inserting duplicates
     existing: Dict[Tuple[str,str], Tuple[float, Optional[float]]] = {}
-    if args.merge_existing or args.skip_if_exists:
-        for acct, tic, qty, cb in cur.execute("SELECT account,ticker,quantity,cost_basis FROM holdings"):
-            existing[(acct, tic)] = (qty, cb)
+    for acct, tic, qty, cb in cur.execute("SELECT account,ticker,quantity,cost_basis FROM holdings"):
+        existing[(acct, tic)] = (qty, cb)
 
     inserted_instruments = 0
     holdings_updates = 0
