@@ -20,8 +20,12 @@ import argparse, csv, datetime, os, re, sqlite3, sys
 from typing import Dict, List, Optional, Tuple
 
 OPTION_PATTERNS = [
-    re.compile(r".+\s+\d{2}[A-Z]{3}\d{2}\s+\d+(\.\d+)?[CP]", re.IGNORECASE),  # OCC style line
-    re.compile(r".*\d{6}[CP]$", re.IGNORECASE),  # trailing YYMMDD + C/P
+    # OCC style text lines containing date + strike + C/P
+    re.compile(r".+\s+\d{2}[A-Z]{3}\d{2}\s+\d+(\.\d+)?[CP]", re.IGNORECASE),
+    # Underlying + YYMMDD + C/P (plain)
+    re.compile(r".*\d{6}[CP]$", re.IGNORECASE),
+    # Short/long option position tickers like -MSTR250919C390 or AAPL250621P150
+    re.compile(r"^-?[A-Z]{1,10}\d{6}[CP]\d+$", re.IGNORECASE),
 ]
 TYPE_HINT_COLUMNS = ["Type", "AssetType", "Asset Class", "SecurityType", "Security Type", "InstrumentType"]
 
@@ -48,13 +52,30 @@ def normalize_symbol(sym: str) -> str:
     return s
 
 def is_option(symbol: str, row: Dict[str, str]) -> bool:
+    """Return True if the row appears to represent an option rather than a stock/ETF.
+
+    Enhanced to catch short option tickers exported as compact codes, e.g.:
+      -MSTR250919C390  (short call)
+       AAPL250621P150  (long put)
+    """
     s = symbol.upper().strip()
-    # Share class allowance already normalized; treat other spaces or '/' as option-like
-    if (" " in s or "/" in s) and not re.match(r"^[A-Z]+-[A-Z]$", s):
-        return True
+    # Direct patterns
     for pat in OPTION_PATTERNS:
         if pat.match(s):
             return True
+    # Leading '-' often denotes a short option position in some exports
+    if s.startswith('-'):
+        core = s.lstrip('-')
+        # If what's left matches underlying + YYMMDD + C/P + strike digits
+        if re.match(r"^[A-Z]{1,10}\d{6}[CP]\d+$", core):
+            return True
+    # Embedded YYMMDD + C/P + digits anywhere
+    if re.search(r"\d{6}[CP]\d+", s):
+        return True
+    # Space or slash with more than trivial share-class pattern
+    if (" " in s or "/" in s) and not re.match(r"^[A-Z]+-[A-Z]$", s):
+        return True
+    # Type hint columns
     for col in TYPE_HINT_COLUMNS:
         v = row.get(col)
         if v and "OPTION" in v.upper():
