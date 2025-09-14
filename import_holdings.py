@@ -90,14 +90,15 @@ def parse_args():
     ap.add_argument("--csv", required=True, help="Input CSV path")
     ap.add_argument("--symbol-col")
     ap.add_argument("--quantity-col")
-    ap.add_argument("--cost-col", help="Per-share cost column (or total if --cost-is-total)")
+    ap.add_argument("--cost-col", help="Per-share cost column (ignored if a Cost Basis Total column is present)")
+    ap.add_argument("--cost-total-col", help="Explicit total cost basis column name (overrides auto-detect)")
     ap.add_argument("--account-col")
     ap.add_argument("--date-col")
     ap.add_argument("--etf-col", help="Column indicating ETF (value contains 'ETF')")
     ap.add_argument("--etf-list", help="Comma separated tickers treated as ETFs")
     ap.add_argument("--cost-is-total", action="store_true", help="Interpret cost column as total dollars, derive per-share")
     ap.add_argument("--default-account", default="MAIN")
-    ap.add_argument("--merge-existing", action="store_true", help="Merge into existing position (weighted avg cost)")
+    ap.add_argument("--merge-existing", action="store_true", help="Merge into existing position (weighted avg cost). If not set, existing rows are REPLACED with CSV quantity & cost basis.")
     ap.add_argument("--skip-if-exists", action="store_true", help="Skip insert if holdings row exists for account+ticker")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--verbose", action="store_true")
@@ -129,14 +130,23 @@ def main():
         return 1
 
     symbol_col = args.symbol_col or detect_column(header, ["Symbol", "Ticker", "Security", "Instrument"])
-    qty_col = args.quantity_col or detect_column(header, ["Quantity", "Qty", "Shares", "Position", "Units"])
-    cost_col = args.cost_col or detect_column(header, ["CostBasis", "AvgCost", "AverageCost", "Cost", "Avg Price"])
+    # Per requirement: only use column explicitly named Quantity (case-insensitive) else fail
+    qty_col = None
+    for h in header:
+        if h.lower() == "quantity":
+            qty_col = h
+            break
+    if args.quantity_col:
+        qty_col = args.quantity_col  # allow override
+    # Detect total cost basis first
+    total_cost_col = args.cost_total_col or detect_column(header, ["Cost Basis Total", "CostBasisTotal", "Total Cost Basis", "TotalCostBasis", "Cost Total", "TotalCost"])  # wide net
+    cost_col = None if total_cost_col else (args.cost_col or detect_column(header, ["CostBasis", "AvgCost", "AverageCost", "Cost", "Avg Price"]))
     acct_col = args.account_col or detect_column(header, ["Account", "Acct", "Portfolio"])
     date_col = args.date_col or detect_column(header, ["OpenDate", "Opened", "PurchaseDate", "Date Acquired"])
     etf_col = args.etf_col or detect_column(header, ["AssetType", "Type", "Asset Class", "SecurityType"])
 
     if not symbol_col or not qty_col:
-        print("Missing required symbol / quantity columns.")
+        print("Missing required symbol or Quantity column (must be named 'Quantity').")
         return 1
 
     etf_manual = set()
@@ -181,9 +191,18 @@ def main():
         # account
         account = (row.get(acct_col) or args.default_account).strip() if acct_col else args.default_account
 
-        # cost basis per share
+        # cost basis logic:
+        # If a total cost basis column exists, store its raw value directly (interpret cost_basis as total position cost now).
+        # Else fallback to per-share cost column behavior (previous logic).
         cost_basis = None
-        if cost_col:
+        if 'total_cost_col' in locals() and total_cost_col:
+            raw_total = row.get(total_cost_col)
+            if raw_total:
+                try:
+                    cost_basis = float(str(raw_total).replace(',', ''))
+                except Exception:
+                    pass
+        elif cost_col:
             raw_cost = row.get(cost_col)
             if raw_cost:
                 try:
@@ -227,7 +246,6 @@ def main():
                 new_qty = prev_qty + qty_val
                 new_cb = prev_cb
                 if cost_basis is not None and prev_cb is not None and new_qty != 0:
-                    # weighted average cost
                     try:
                         new_cb = (prev_qty * prev_cb + qty_val * cost_basis) / new_qty
                     except Exception:
@@ -240,6 +258,16 @@ def main():
                         (new_qty, new_cb, account, sym),
                     )
                 existing[key] = (new_qty, new_cb)
+                holdings_updates += 1
+                continue
+            else:
+                # Replace existing position with CSV value (no accumulation)
+                if not args.dry_run:
+                    cur.execute(
+                        "UPDATE holdings SET quantity=?, cost_basis=?, opened_at=?, last_update=datetime('now') WHERE account=? AND ticker=?",
+                        (qty_val, cost_basis, opened_at, account, sym),
+                    )
+                existing[key] = (qty_val, cost_basis)
                 holdings_updates += 1
                 continue
 
