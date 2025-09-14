@@ -1,1 +1,223 @@
-MGNI
+Bullish Breakout Screener Results
+===============================
+
+AIQ — Global X Artificial Intelligenc
+-------------------------------------
+Price: $47.34  Change: 0.3%
+Score: 115/100  Risk: Medium  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-08  macd=0.6426  signal=0.4214  hist=0.2213
+RSI(14): 71.44
+Volume: current=1426200.0  avg20=1096480.0  ratio=1.3x
+Breakout: level=$47.2  above=0.3%  window=6m
+Entry: quality=early  ext50=5.75%  ATRmove=0.43  stop=$46.75
+
+TOPT — iShares Trust iShares Top 20 U.
+--------------------------------------
+Price: $29.83  Change: 0.78%
+Score: 115/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=0.3226  signal=0.2871  hist=0.0356
+RSI(14): 69.08
+Volume: current=315300.0  avg20=224570.0  ratio=1.4x
+Breakout: level=$29.6  above=0.78%  window=6m
+Entry: quality=early  ext50=4.72%  ATRmove=1.36  stop=$29.53
+
+QBTS — D-Wave Quantum Inc.
+--------------------------
+Price: $17.76  Change: 7.51%
+Score: 105/100  Risk: Medium  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-09  macd=-0.0634  signal=-0.2983  hist=0.235
+RSI(14): 61.43
+Volume: current=59506300.0  avg20=31481790.0  ratio=1.89x
+Breakout: level=$20.3  above=-12.51%  window=6m
+Entry: quality=early  ext50=5.66%  ATRmove=-6.3  stop=n/a
+
+APLD — Applied Digital Corporation
+----------------------------------
+Price: $18.68  Change: 8.73%
+Score: 102/100  Risk: High  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-12  macd=0.8646  signal=0.741  hist=0.1236
+RSI(14): 70.96
+Volume: current=32827800.0  avg20=28268690.0  ratio=1.16x
+Breakout: level=$17.18  above=8.73%  window=6m
+Entry: quality=late  ext50=40.18%  ATRmove=2.49  stop=$17.59
+
+QS — QuantumScape Corporation
+-----------------------------
+Price: $9.95  Change: 12.43%
+Score: 100/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-08  macd=0.0332  signal=-0.1591  hist=0.1923
+RSI(14): 60.96
+Volume: current=38966200.0  avg20=22810575.0  ratio=1.71x
+Breakout: level=$14.64  above=-32.04%  window=6m
+Entry: quality=early  ext50=6.86%  ATRmove=-11.19  stop=n/a
+
+ENB — Enbridge Inc
+------------------
+Price: $49.1  Change: 0.59%
+Score: 97/100  Risk: Medium  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-12  macd=0.6972  signal=0.6962  hist=0.001
+RSI(14): 74.27
+Volume: current=2011500.0  avg20=3220800.0  ratio=0.62x
+Breakout: level=$48.81  above=0.59%  window=6m
+Entry: quality=actionable  ext50=6.33%  ATRmove=1.57  stop=$48.77
+
+RILY — B. Riley Financial, Inc.
+-------------------------------
+Price: $6.22  Change: 0.0%
+Score: 97/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-11  macd=0.1138  signal=0.0713  hist=0.0424
+RSI(14): 60.87
+Volume: current=1032400.0  avg20=1020360.0  ratio=1.01x
+Breakout: level=$6.92  above=-10.12%  window=6m
+Entry: quality=early  ext50=16.27%  ATRmove=-3.07  stop=n/a
+
+SPY — SPDR S&P 500
+------------------
+Price: $657.41  Change: -0.03%
+Score: 97/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=5.477  signal=4.8441  hist=0.6329
+RSI(14): 67.74
+Volume: current=72708800.0  avg20=67515665.0  ratio=1.08x
+Breakout: level=$657.63  above=-0.03%  window=6m
+Entry: quality=early  ext50=3.23%  ATRmove=-0.08  stop=$652.36
+
+VIG — Vanguard Div Appreciation ETF
+-----------------------------------
+Price: $215.62  Change: -0.42%
+Score: 97/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-08  macd=1.8921  signal=1.4997  hist=0.3923
+RSI(14): 69.29
+Volume: current=922300.0  avg20=862695.0  ratio=1.07x
+Breakout: level=$216.52  above=-0.42%  window=6m
+Entry: quality=early  ext50=3.26%  ATRmove=-1.03  stop=$214.35
+
+VOO — Vanguard S&P 500 ETF
+--------------------------
+Price: $604.44  Change: -0.02%
+Score: 97/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=5.0589  signal=4.4702  hist=0.5887
+RSI(14): 68.1
+Volume: current=8124900.0  avg20=7888080.0  ratio=1.03x
+Breakout: level=$604.57  above=-0.02%  window=6m
+Entry: quality=early  ext50=3.25%  ATRmove=-0.05  stop=$599.89
+
+NBIS — Nebius Group N.V.
+------------------------
+Price: $90.41  Change: 1.37%
+Score: 95/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-09  macd=6.8527  signal=4.7408  hist=2.1119
+RSI(14): 69.59
+Volume: current=22794900.0  avg20=17336450.0  ratio=1.31x
+Breakout: level=$95.72  above=-5.55%  window=6m
+Entry: quality=early  ext50=45.38%  ATRmove=-1.42  stop=n/a
+
+ORCL — Oracle Corporation
+-------------------------
+Price: $292.18  Change: -5.09%
+Score: 95/100  Risk: Medium  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=12.1195  signal=3.9159  hist=8.2037
+RSI(14): 64.47
+Volume: current=51637100.0  avg20=23523630.0  ratio=2.2x
+Breakout: level=$328.33  above=-11.01%  window=6m
+Entry: quality=early  ext50=19.33%  ATRmove=-3.03  stop=n/a
+
+SHLD — Global X Funds Global X Defense
+--------------------------------------
+Price: $65.54  Change: 0.31%
+Score: 95/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=0.7644  signal=0.4667  hist=0.2977
+RSI(14): 69.92
+Volume: current=479300.0  avg20=654495.0  ratio=0.73x
+Breakout: level=$65.34  above=0.31%  window=6m
+Entry: quality=early  ext50=6.06%  ATRmove=0.44  stop=$64.72
+
+ARKK — ARK Innovation ETF
+-------------------------
+Price: $78.57  Change: 0.34%
+Score: 92/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-11  macd=0.759  signal=0.5569  hist=0.2021
+RSI(14): 62.33
+Volume: current=8473800.0  avg20=10571460.0  ratio=0.8x
+Breakout: level=$78.3  above=0.34%  window=6m
+Entry: quality=early  ext50=4.63%  ATRmove=0.35  stop=$77.52
+
+JEPQ — JPMorgan Nasdaq Equity Premium 
+--------------------------------------
+Price: $56.54  Change: 0.23%
+Score: 92/100  Risk: Medium  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-08  macd=0.5061  signal=0.4404  hist=0.0657
+RSI(14): 70.24
+Volume: current=3745100.0  avg20=5129165.0  ratio=0.73x
+Breakout: level=$56.41  above=0.23%  window=6m
+Entry: quality=early  ext50=3.46%  ATRmove=0.58  stop=$56.14
+
+JPM — JP Morgan Chase & Co.
+---------------------------
+Price: $306.91  Change: 0.44%
+Score: 92/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-11  macd=2.9986  signal=2.453  hist=0.5456
+RSI(14): 63.73
+Volume: current=6846200.0  avg20=7086965.0  ratio=0.97x
+Breakout: level=$305.56  above=0.44%  window=6m
+Entry: quality=early  ext50=4.43%  ATRmove=0.48  stop=$302.5
+
+SMH — VanEck Semiconductor ETF
+------------------------------
+Price: $304.32  Change: 0.13%
+Score: 92/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=2.9712  signal=2.0395  hist=0.9317
+RSI(14): 64.31
+Volume: current=5231200.0  avg20=7721270.0  ratio=0.68x
+Breakout: level=$303.93  above=0.13%  window=6m
+Entry: quality=early  ext50=4.35%  ATRmove=0.15  stop=$300.89
+
+SPYG — SPDR Series Trust SPDR Portfoli
+--------------------------------------
+Price: $103.04  Change: 0.15%
+Score: 92/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-09  macd=1.1044  signal=0.8583  hist=0.246
+RSI(14): 69.64
+Volume: current=1983900.0  avg20=2354940.0  ratio=0.84x
+Breakout: level=$102.89  above=0.15%  window=6m
+Entry: quality=early  ext50=4.38%  ATRmove=0.26  stop=$102.01
+
+WULF — TeraWulf Inc.
+--------------------
+Price: $10.76  Change: 1.13%
+Score: 87/100  Risk: High  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-11  macd=1.029  signal=0.9981  hist=0.0309
+RSI(14): 76.11
+Volume: current=28042200.0  avg20=56096600.0  ratio=0.5x
+Breakout: level=$10.64  above=1.13%  window=6m
+Entry: quality=early  ext50=55.66%  ATRmove=0.44  stop=$10.53
+
+TSLA — Tesla, Inc.
+------------------
+Price: $395.94  Change: 7.36%
+Score: 85/100  Risk: High  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-05  macd=10.7033  signal=6.5758  hist=4.1275
+RSI(14): 74.84
+Volume: current=167721600.0  avg20=80090705.0  ratio=2.09x
+Breakout: level=$368.81  above=7.36%  window=6m
+Entry: quality=late  ext50=20.52%  ATRmove=3.47  stop=$381.87
+
