@@ -1,84 +1,96 @@
-"""Assign simple style categories (growth, value, income) to instruments.
-
-Fast, offline classification (no API calls) using static lists + rules:
- - Explicit growth and income sets below.
- - Anything not matched defaults to value (per requirement).
- - ETFs with common dividend / income symbols treated as income.
-
-Usage:
-  python assign_styles_basic.py --db at_data.sqlite [--overwrite]
-"""
 from __future__ import annotations
-import argparse, sqlite3, datetime
 
-GROWTH = {
-    # Large cap tech / high-growth
-    "AMZN","AAPL","MSFT","GOOGL","META","NVDA","NFLX","TSLA","AMD","NET","SNOW","CRWD","SHOP","PLTR","UBER","ABNB","PANW","QCOM","AVGO","ANET","ADBE","MU","SMCI","INMB","INKT","QUBT","QBTS","MSTR","RBLX","UPST","SOFI","APLD","ARM","SMH","AIQ","NVTS","VRT","RIOT","CORZ","BTCM","MESA","OPEN","ZS","DDOG","DOCN","DOCU","HOOD","LQDA","QS","QCOM","PROK","SOUN","RIVN","QNTM","QUBT","NVTS"
-}
+"""Assign style_category for instruments where it is missing/Unknown.
 
-INCOME = {
-    # Dividend / income focused equities & ETFs
-    "KO","PEP","PG","T","VZ","XOM","CVX","JNJ","HDV","VYM","DVY","SCHD","JEPI","JEPQ","O","VIG","SPYD","SPYV","MO","ENB","LTC","IAU","GLD","DVY","VYM","SCHD","HDV","SPYD"
-}
+Heuristics (ordered):
+    1. If instrument_type = 'etf' sector drives style (growth, income, commodity, crypto, real_estate, broad).
+    2. If instrument_type = 'stock': sector maps to style buckets (growth/defensive/financial/core/energy/real_estate).
+    3. Fallback = 'core' (stocks) or 'broad' (ETFs without recognizable sector).
 
-# Additional ETF heuristics for income classification
-INCOME_KEYWORDS = {"DIV","YLD","YIELD","INCOME"}
+The script only updates rows where style_category IS NULL/''/'Unknown'.
+Idempotent and safe to re-run.
+"""
+import sqlite3, os, argparse
 
-ETF_INCOME_EXPLICIT = {"SCHD","DVY","VYM","HDV","SPYD","JEPI","JEPQ","VIG"}
+SELECT_TARGETS = """
+SELECT ticker, instrument_type, COALESCE(sector,''), COALESCE(style_category,'')
+FROM instruments
+WHERE style_category IS NULL OR style_category='' OR style_category='Unknown'
+ORDER BY ticker
+"""
 
+UPDATE_SQL = """UPDATE instruments
+SET style_category = :style, updated_at = datetime('now')
+WHERE ticker = :ticker AND (style_category IS NULL OR style_category='' OR style_category='Unknown')"""
 
-def classify(ticker: str) -> str:
-    t = ticker.upper()
-    if t in INCOME or t in ETF_INCOME_EXPLICIT:
-        return "income"
-    if any(k in t for k in INCOME_KEYWORDS):
-        return "income"
-    if t in GROWTH:
-        return "growth"
-    # default rule
-    return "value"
-
+def classify(inst_type: str, sector: str) -> str:
+    inst_type = (inst_type or '').lower()
+    s = sector.lower()
+    if inst_type == 'etf':
+        if 'technology' in s:
+            return 'growth'
+        if 'income' in s or 'dividend' in s:
+            return 'income'
+        if 'gold' in s or 'commod' in s:
+            return 'commodity'
+        if 'digital' in s or 'crypto' in s:
+            return 'crypto'
+        if 'real estate' in s:
+            return 'real_estate'
+        if 'broad' in s or not s:
+            return 'broad'
+        return 'broad'
+    # Stocks
+    if 'technology' in s:
+        return 'growth'
+    if 'consumer cyclical' in s or 'communication services' in s:
+        return 'growth'
+    if 'healthcare' in s:
+        return 'defensive'
+    if 'consumer defensive' in s or 'utilities' in s:
+        return 'defensive'
+    if 'financial' in s:
+        return 'financial'
+    if 'industrial' in s or 'basic materials' in s:
+        return 'value'
+    if 'energy' in s:
+        return 'energy'
+    if 'real estate' in s:
+        return 'real_estate'
+    if not s:
+        return 'value'
+    return 'value'
 
 def main():
-    ap = argparse.ArgumentParser(description="Assign simple style categories to instruments")
-    ap.add_argument("--db", default="at_data.sqlite", help="SQLite DB path")
-    ap.add_argument("--overwrite", action="store_true", help="Overwrite existing non-empty style_category")
-    ap.add_argument("--dry-run", action="store_true")
+    ap = argparse.ArgumentParser(description='Assign style_category heuristically')
+    default_db = 'at_data.sqlite'
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidate = os.path.join(script_dir, default_db)
+    if os.path.exists(candidate):
+        default_db = candidate
+    ap.add_argument('--db', default=default_db, help='SQLite DB path')
     args = ap.parse_args()
-
-    con = sqlite3.connect(args.db)
-    cur = con.cursor()
-
-    if args.overwrite:
-        cur.execute("SELECT ticker, style_category FROM instruments ORDER BY ticker")
-    else:
-        cur.execute("SELECT ticker, style_category FROM instruments WHERE style_category IS NULL OR style_category='' ORDER BY ticker")
-    rows = cur.fetchall()
+    if not os.path.exists(args.db):
+        print('DB not found:', args.db)
+        return 1
+    conn = sqlite3.connect(args.db)
+    cur = conn.cursor()
+    rows = cur.execute(SELECT_TARGETS).fetchall()
     if not rows:
-        print("Nothing to classify.")
+        print('No rows need style assignment.')
         return 0
-
     updated = 0
-    for ticker, existing in rows:
-        style = classify(ticker)
-        if args.overwrite and (existing and existing.strip() and existing == style):
-            continue
-        if args.dry_run:
-            print(f"{ticker}: {existing or '-'} -> {style}")
-        else:
-            cur.execute("UPDATE instruments SET style_category=?, updated_at=datetime('now') WHERE ticker=?", (style, ticker))
+    for i, (ticker, inst_type, sector, existing) in enumerate(rows, 1):
+        style = classify(inst_type, sector)
+        cur.execute(UPDATE_SQL, {'ticker': ticker, 'style': style})
+        if cur.rowcount:
             updated += 1
-
-    if not args.dry_run:
-        con.commit()
-        print(f"Updated {updated} instrument rows.")
-
-    # Distribution
-    print("\nStyle distribution:")
-    for cat, cnt in cur.execute("SELECT style_category, COUNT(*) FROM instruments GROUP BY style_category ORDER BY COUNT(*) DESC"):
-        print(f"  {cat or '(none)'}: {cnt}")
-
+        print(f"{i}/{len(rows)} {ticker}: sector='{sector}' -> style='{style}' (updated={cur.rowcount})")
+        if i % 100 == 0:
+            conn.commit()
+    conn.commit()
+    print(f'Done. Rows updated: {updated}')
     return 0
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     raise SystemExit(main())

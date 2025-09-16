@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../providers/holdings_provider.dart';
 import '../widgets/portfolio_summary_cards.dart';
 import '../widgets/sector_allocation_chart.dart';
+import '../widgets/style_allocation_chart.dart';
 import '../widgets/top_holdings_chart.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/error_widget.dart';
@@ -88,19 +89,27 @@ class DashboardScreen extends ConsumerWidget {
 
           // Charts Section
           if (isWideScreen)
-            // Wide screen: side by side layout
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Wide screen: three-column layout
+            Column(
               children: [
-                Expanded(
-                  flex: 1,
-                  child: _buildSectorAllocationSection(context, summary),
+                // Allocation charts row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: _buildSectorAllocationSection(context, summary),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 1,
+                      child: _buildStyleAllocationSection(context, summary),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 24),
-                Expanded(
-                  flex: 1,
-                  child: _buildTopHoldingsSection(context, summary),
-                ),
+                const SizedBox(height: 32),
+                // Top holdings section
+                _buildTopHoldingsSection(context, summary),
               ],
             )
           else
@@ -108,6 +117,8 @@ class DashboardScreen extends ConsumerWidget {
             Column(
               children: [
                 _buildSectorAllocationSection(context, summary),
+                const SizedBox(height: 24),
+                _buildStyleAllocationSection(context, summary),
                 const SizedBox(height: 32),
                 _buildTopHoldingsSection(context, summary),
               ],
@@ -149,6 +160,40 @@ class DashboardScreen extends ConsumerWidget {
             SizedBox(
               height: 300,
               child: SectorAllocationChart(sectorData: summary.sectorAllocation),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStyleAllocationSection(BuildContext context, dynamic summary) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Style Allocation',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  onPressed: () {
+                    _showStyleInfo(context);
+                  },
+                  tooltip: 'Style allocation breakdown',
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 300,
+              child: StyleAllocationChart(styleData: summary.styleAllocation),
             ),
           ],
         ),
@@ -268,6 +313,26 @@ class DashboardScreen extends ConsumerWidget {
         content: const Text(
           'This chart shows how your portfolio is distributed across different market sectors. '
           'Diversification across sectors can help reduce risk.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showStyleInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Style Allocation'),
+        content: const Text(
+          'This chart shows how your portfolio is distributed across different investment styles. '
+          'Growth stocks focus on capital appreciation, Value stocks are undervalued by the market, '
+          'and Income stocks provide regular dividend payments.',
         ),
         actions: [
           TextButton(

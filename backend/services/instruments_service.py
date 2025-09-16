@@ -26,6 +26,7 @@ class InstrumentsService:
         self,
         instrument_type: Optional[str] = None,
         sector: Optional[str] = None,
+        style_category: Optional[str] = None,
         active: Optional[bool] = None,
         limit: int = 50,
         offset: int = 0
@@ -35,6 +36,7 @@ class InstrumentsService:
         Args:
             instrument_type: Filter by instrument type (stock, etf, etc.)
             sector: Filter by sector
+            style_category: Filter by style category
             active: Filter by active status
             limit: Maximum number of results
             offset: Number of results to skip
@@ -53,6 +55,10 @@ class InstrumentsService:
         if sector:
             where_conditions.append("sector = ?")
             params.append(sector)
+        
+        if style_category:
+            where_conditions.append("style_category = ?")
+            params.append(style_category)
         
         if active is not None:
             where_conditions.append("active = ?")
@@ -236,6 +242,23 @@ class InstrumentsService:
         FROM instruments
         WHERE instrument_type IS NOT NULL AND instrument_type != ''
         ORDER BY instrument_type ASC
+        """
+        
+        rows = self.db_manager.execute_query(query)
+        
+        return [row[0] for row in rows]
+    
+    def get_style_categories(self) -> List[str]:
+        """Get list of all unique style categories.
+        
+        Returns:
+            List of style category names
+        """
+        query = """
+        SELECT DISTINCT style_category
+        FROM instruments
+        WHERE style_category IS NOT NULL AND style_category != ''
+        ORDER BY style_category ASC
         """
         
         rows = self.db_manager.execute_query(query)

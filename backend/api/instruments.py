@@ -23,6 +23,7 @@ instruments_service = InstrumentsService(get_db_manager(), market_service)
 async def get_instruments(
     instrument_type: Optional[str] = Query(None, description="Filter by instrument type (stock, etf, etc.)"),
     sector: Optional[str] = Query(None, description="Filter by sector"),
+    style_category: Optional[str] = Query(None, description="Filter by style category"),
     active: Optional[bool] = Query(None, description="Filter by active status"),
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip for pagination")
@@ -32,15 +33,17 @@ async def get_instruments(
     Returns instrument metadata including:
     - Ticker symbol and instrument type
     - Sector and industry classification
+    - Style category classification
     - Country and currency information
     - Active status and last update timestamp
     
-    Supports pagination and filtering by type, sector, and active status.
+    Supports pagination and filtering by type, sector, style category, and active status.
     """
     try:
         return instruments_service.get_instruments(
             instrument_type=instrument_type,
             sector=sector,
+            style_category=style_category,
             active=active,
             limit=limit,
             offset=offset
@@ -275,6 +278,25 @@ async def get_instrument_types():
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve instrument types: {str(e)}"
+        )
+
+
+@router.get("/instruments/meta/styles")
+async def get_style_categories():
+    """Get list of all unique style categories in the database.
+    
+    Returns sorted list of style categories for filtering and categorization.
+    """
+    try:
+        styles = instruments_service.get_style_categories()
+        return {
+            "styles": styles,
+            "count": len(styles)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve style categories: {str(e)}"
         )
 
 

@@ -13,7 +13,7 @@ from ..database.connection import DatabaseManager
 from ..database.models import HoldingWithInstrument
 from ..models.schemas import (
     PositionResponse, PortfolioSummaryResponse, AccountSummary,
-    SectorAllocation, TopHolding, PositionsResponse
+    SectorAllocation, StyleAllocation, TopHolding, PositionsResponse
 )
 from .market_data_service import MarketDataService
 
@@ -146,8 +146,9 @@ class HoldingsService:
                 holding.current_price = price_data.get('price')
                 if holding.current_price and holding.quantity:
                     holding.market_value = holding.current_price * holding.quantity
+                    # cost_basis stored as TOTAL (not per share)
                     if holding.cost_basis:
-                        total_cost = holding.cost_basis * holding.quantity
+                        total_cost = holding.cost_basis
                         holding.unrealized_gain_loss = holding.market_value - total_cost
                         if total_cost > 0:
                             holding.unrealized_gain_loss_percent = (holding.unrealized_gain_loss / total_cost) * 100
@@ -155,19 +156,23 @@ class HoldingsService:
         
         # Calculate portfolio metrics
         total_value = sum((h.market_value or 0) for h in enriched_holdings)
-        total_cost_basis = sum(((h.cost_basis or 0) * h.quantity) for h in enriched_holdings if h.cost_basis)
+        # Treat cost_basis as already TOTAL
+        total_cost_basis = sum((h.cost_basis or 0) for h in enriched_holdings if h.cost_basis)
         total_gain_loss = total_value - total_cost_basis if total_cost_basis > 0 else None
         total_gain_loss_percent = ((total_gain_loss / total_cost_basis) * 100) if total_cost_basis > 0 and total_gain_loss else None
-        
+
         # Calculate account summaries
         accounts = self._calculate_account_summaries(enriched_holdings)
-        
+
         # Calculate sector allocations
         sector_allocations = self._calculate_sector_allocations(enriched_holdings, total_value)
-        
+
+        # Calculate style allocations
+        style_allocations = self._calculate_style_allocations(enriched_holdings, total_value)
+
         # Get top holdings (by market value)
         top_holdings = self._get_top_holdings(enriched_holdings, total_value, limit=10)
-        
+
         return PortfolioSummaryResponse(
             total_value=total_value if total_value > 0 else None,
             total_cost_basis=total_cost_basis if total_cost_basis > 0 else None,
@@ -176,6 +181,7 @@ class HoldingsService:
             accounts=accounts,
             top_holdings=top_holdings,
             sector_allocation=sector_allocations,
+            style_allocation=style_allocations,
             last_updated=datetime.utcnow()
         )
     
@@ -217,7 +223,7 @@ class HoldingsService:
             market_value=holding.market_value,
             unrealized_gain_loss=holding.unrealized_gain_loss,
             unrealized_gain_loss_percent=holding.unrealized_gain_loss_percent,
-            sector=holding.sector,
+            style_category=holding.style_category,
             industry=holding.industry,
             currency=holding.currency,
             instrument_type=holding.instrument_type,
@@ -234,7 +240,7 @@ class HoldingsService:
                 if position.current_price and position.quantity:
                     position.market_value = position.current_price * position.quantity
                     if position.cost_basis:
-                        total_cost = position.cost_basis * position.quantity
+                        total_cost = position.cost_basis  # total cost already
                         position.unrealized_gain_loss = position.market_value - total_cost
                         if total_cost > 0:
                             position.unrealized_gain_loss_percent = (position.unrealized_gain_loss / total_cost) * 100
@@ -254,7 +260,7 @@ class HoldingsService:
             
             account_data[account]['value'] += holding.market_value or 0.0
             if holding.cost_basis:
-                account_data[account]['cost_basis'] += holding.cost_basis * holding.quantity
+                account_data[account]['cost_basis'] += holding.cost_basis  # total cost
             account_data[account]['count'] += 1
         
         summaries = []
@@ -303,6 +309,36 @@ class HoldingsService:
         allocations.sort(key=lambda x: x.value or 0, reverse=True)
         return allocations
     
+    def _calculate_style_allocations(self, holdings: List[HoldingWithInstrument], total_value: float) -> List[StyleAllocation]:
+        """Calculate style allocation breakdown."""
+        style_data = {}
+        
+        for holding in holdings:
+            style_category = holding.style_category or 'Unknown'
+            if style_category not in style_data:
+                style_data[style_category] = {
+                    'value': 0.0,
+                    'count': 0
+                }
+            
+            style_data[style_category]['value'] += holding.market_value or 0.0
+            style_data[style_category]['count'] += 1
+        
+        allocations = []
+        for style_category, data in style_data.items():
+            weight = (data['value'] / total_value * 100) if total_value > 0 else 0.0
+            
+            allocations.append(StyleAllocation(
+                style_category=style_category,
+                value=data['value'] if data['value'] > 0 else None,
+                weight=weight if weight > 0 else None,
+                positions_count=data['count']
+            ))
+        
+        # Sort by value descending
+        allocations.sort(key=lambda x: x.value or 0, reverse=True)
+        return allocations
+    
     def _get_top_holdings(self, holdings: List[HoldingWithInstrument], total_value: float, limit: int = 10) -> List[TopHolding]:
         """Get top holdings by market value."""
         # Sort by market value descending
@@ -315,7 +351,7 @@ class HoldingsService:
             gain_loss = None
             gain_loss_percent = None
             if holding.cost_basis and holding.market_value:
-                total_cost = holding.cost_basis * holding.quantity
+                total_cost = holding.cost_basis  # total cost
                 gain_loss = holding.market_value - total_cost
                 if total_cost > 0:
                     gain_loss_percent = (gain_loss / total_cost) * 100

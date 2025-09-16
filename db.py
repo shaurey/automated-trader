@@ -128,11 +128,20 @@ class Database:
                 self.conn.rollback()
             self.conn.close()
 
-    def connect(self):
+    def connect(self, skip_schema: bool = False):
         if self.conn is None:
-            self.conn = sqlite3.connect(self.path)
+            # Enable autocommit (isolation_level=None) so each statement commits immediately unless part of explicit transaction.
+            self.conn = sqlite3.connect(self.path, isolation_level=None, timeout=5.0)
+            try:
+                # Busy timeout as secondary safeguard (ms); works with legacy APIs issuing BEGIN implicitly.
+                self.conn.execute("PRAGMA busy_timeout=5000")
+                # WAL journal improves writer concurrency (single writer but readers non-blocking)
+                self.conn.execute("PRAGMA journal_mode=WAL")
+            except Exception:
+                pass
             self.conn.execute("PRAGMA foreign_keys=ON")
-            self.ensure_schema()
+            if not skip_schema:
+                self.ensure_schema()
 
     def ensure_schema(self):
         cur = self.conn.cursor()

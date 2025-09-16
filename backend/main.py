@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from .api.holdings import router as holdings_router
 from .api.instruments import router as instruments_router
 from .api.health import router as health_router
+from .api.strategies import router as strategies_router
 
 
 # Configure logging
@@ -108,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix="/api", tags=["health"])
     app.include_router(holdings_router, prefix="/api", tags=["holdings"])
     app.include_router(instruments_router, prefix="/api", tags=["instruments"])
+    app.include_router(strategies_router, prefix="/api", tags=["strategies"])
     
     return app
 

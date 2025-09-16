@@ -6,6 +6,7 @@ class HoldingsSummary {
   final List<AccountSummary> accounts;
   final List<TopHolding> topHoldings;
   final List<SectorAllocation> sectorAllocation;
+  final List<StyleAllocation> styleAllocation;
 
   HoldingsSummary({
     required this.totalValue,
@@ -15,6 +16,7 @@ class HoldingsSummary {
     required this.accounts,
     required this.topHoldings,
     required this.sectorAllocation,
+    required this.styleAllocation,
   });
 
   static double? _numOrNull(dynamic v) {
@@ -27,6 +29,7 @@ class HoldingsSummary {
     final accountsRaw = json['accounts'];
     final topRaw = json['top_holdings'];
     final sectorRaw = json['sector_allocation'];
+    final styleRaw = json['style_allocation'];
     return HoldingsSummary(
       totalValue: _numOrNull(json['total_value']),
       totalCostBasis: _numOrNull(json['total_cost_basis']),
@@ -41,6 +44,9 @@ class HoldingsSummary {
       sectorAllocation: sectorRaw is List
           ? sectorRaw.map((s) => SectorAllocation.fromJson(s)).toList()
           : <SectorAllocation>[],
+      styleAllocation: styleRaw is List
+          ? styleRaw.map((s) => StyleAllocation.fromJson(s)).toList()
+          : <StyleAllocation>[],
     );
   }
 }
@@ -138,6 +144,28 @@ class SectorAllocation {
   }
 }
 
+class StyleAllocation {
+  final String styleCategory;
+  final double? value;
+  final double? weight;
+
+  StyleAllocation({
+    required this.styleCategory,
+    required this.value,
+    required this.weight,
+  });
+
+  static double? _num(dynamic v) => (v is num) ? v.toDouble() : (v == null ? null : double.tryParse(v.toString()));
+
+  factory StyleAllocation.fromJson(Map<String, dynamic> json) {
+    return StyleAllocation(
+      styleCategory: json['style_category'] as String? ?? 'Unknown',
+      value: _num(json['value']),
+      weight: _num(json['weight']),
+    );
+  }
+}
+
 class PositionsResponse {
   final List<Position> positions;
 
@@ -163,7 +191,7 @@ class Position {
   final double? marketValue;
   final double? unrealizedGainLoss;
   final double? unrealizedGainLossPercent;
-  final String? sector;
+  final String? styleCategory;
   final String? industry;
   final String? currency;
   final DateTime? openedAt;
@@ -180,7 +208,7 @@ class Position {
     required this.marketValue,
     required this.unrealizedGainLoss,
     required this.unrealizedGainLossPercent,
-    required this.sector,
+    required this.styleCategory,
     required this.industry,
     required this.currency,
     required this.openedAt,
@@ -206,7 +234,7 @@ class Position {
       marketValue: _num(json['market_value']),
       unrealizedGainLoss: _num(json['unrealized_gain_loss']),
       unrealizedGainLossPercent: _num(json['unrealized_gain_loss_percent']),
-      sector: json['sector'] as String?,
+      styleCategory: json['style_category'] as String?,
       industry: json['industry'] as String?,
       currency: json['currency'] as String?,
       openedAt: _dt(json['opened_at']),

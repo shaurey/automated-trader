@@ -34,15 +34,26 @@ final healthCheckProvider = FutureProvider<Map<String, dynamic>>((ref) async {
 
 // Selected filters state providers
 final selectedAccountProvider = StateProvider<String?>((ref) => null);
-final selectedSectorProvider = StateProvider<String?>((ref) => null);
+final selectedStyleProvider = StateProvider<String?>((ref) => null);
 final searchQueryProvider = StateProvider<String>((ref) => '');
 final sortModeProvider = StateProvider<SortMode>((ref) => SortMode.valueDesc);
+
+// Accounts list provider
+final accountsProvider = FutureProvider<List<String>>((ref) async {
+  try {
+    final accounts = await ApiService.getAccounts();
+    return accounts;
+  } catch (e) {
+    // Return empty list on failure to keep UI functional
+    return [];
+  }
+});
 
 // Filtered positions provider that combines positions with filters
 final filteredPositionsProvider = Provider<AsyncValue<List<Position>>>((ref) {
   final positionsAsync = ref.watch(positionsProvider(const PositionsFilter()));
   final selectedAccount = ref.watch(selectedAccountProvider);
-  final selectedSector = ref.watch(selectedSectorProvider);
+  final selectedStyle = ref.watch(selectedStyleProvider);
   final searchQuery = ref.watch(searchQueryProvider);
   final sortMode = ref.watch(sortModeProvider);
 
@@ -55,8 +66,8 @@ final filteredPositionsProvider = Provider<AsyncValue<List<Position>>>((ref) {
         positions = positions.where((p) => p.account == selectedAccount).toList();
       }
 
-      if (selectedSector != null && selectedSector.isNotEmpty) {
-        positions = positions.where((p) => p.sector == selectedSector).toList();
+      if (selectedStyle != null && selectedStyle.isNotEmpty) {
+        positions = positions.where((p) => p.styleCategory == selectedStyle).toList();
       }
 
       if (searchQuery.isNotEmpty) {

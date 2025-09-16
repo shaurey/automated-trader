@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/holdings_screen.dart';
 import 'screens/charts_screen.dart';
+import 'screens/strategies_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: TradingApp()));
@@ -82,6 +83,11 @@ final GoRouter _router = GoRouter(
           name: 'charts',
           builder: (context, state) => const ChartsScreen(),
         ),
+        GoRoute(
+          path: '/strategies',
+          name: 'strategies',
+          builder: (context, state) => const StrategiesScreen(),
+        ),
       ],
     ),
   ],
@@ -128,6 +134,11 @@ class _ScaffoldWithNavigationState extends State<ScaffoldWithNavigation> {
                   selectedIcon: Icon(Icons.bar_chart),
                   label: Text('Charts'),
                 ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.insights_outlined),
+                  selectedIcon: Icon(Icons.insights),
+                  label: Text('Strategies'),
+                ),
               ],
             ),
             const VerticalDivider(thickness: 1, width: 1),
@@ -158,6 +169,11 @@ class _ScaffoldWithNavigationState extends State<ScaffoldWithNavigation> {
             selectedIcon: Icon(Icons.bar_chart),
             label: 'Charts',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights),
+            label: 'Strategies',
+          ),
         ],
       ),
     );
@@ -177,6 +193,9 @@ class _ScaffoldWithNavigationState extends State<ScaffoldWithNavigation> {
         break;
       case 2:
         context.goNamed('charts');
+        break;
+      case 3:
+        context.goNamed('strategies');
         break;
     }
   }

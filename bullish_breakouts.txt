@@ -1,223 +1,344 @@
 Bullish Breakout Screener Results
 ===============================
 
-AIQ — Global X Artificial Intelligenc
--------------------------------------
-Price: $47.34  Change: 0.3%
-Score: 115/100  Risk: Medium  Recommendation: Buy
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-08  macd=0.6426  signal=0.4214  hist=0.2213
-RSI(14): 71.44
-Volume: current=1426200.0  avg20=1096480.0  ratio=1.3x
-Breakout: level=$47.2  above=0.3%  window=6m
-Entry: quality=early  ext50=5.75%  ATRmove=0.43  stop=$46.75
-
 TOPT — iShares Trust iShares Top 20 U.
 --------------------------------------
-Price: $29.83  Change: 0.78%
-Score: 115/100  Risk: Low  Recommendation: Buy
+Price: $30.11  Change: 0.94%
+Score: 115/100  Risk: Medium  Recommendation: Buy
 SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-10  macd=0.3226  signal=0.2871  hist=0.0356
-RSI(14): 69.08
-Volume: current=315300.0  avg20=224570.0  ratio=1.4x
-Breakout: level=$29.6  above=0.78%  window=6m
-Entry: quality=early  ext50=4.72%  ATRmove=1.36  stop=$29.53
-
-QBTS — D-Wave Quantum Inc.
---------------------------
-Price: $17.76  Change: 7.51%
-Score: 105/100  Risk: Medium  Recommendation: Buy
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-09  macd=-0.0634  signal=-0.2983  hist=0.235
-RSI(14): 61.43
-Volume: current=59506300.0  avg20=31481790.0  ratio=1.89x
-Breakout: level=$20.3  above=-12.51%  window=6m
-Entry: quality=early  ext50=5.66%  ATRmove=-6.3  stop=n/a
-
-APLD — Applied Digital Corporation
-----------------------------------
-Price: $18.68  Change: 8.73%
-Score: 102/100  Risk: High  Recommendation: Watch
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-12  macd=0.8646  signal=0.741  hist=0.1236
-RSI(14): 70.96
-Volume: current=32827800.0  avg20=28268690.0  ratio=1.16x
-Breakout: level=$17.18  above=8.73%  window=6m
-Entry: quality=late  ext50=40.18%  ATRmove=2.49  stop=$17.59
-
-QS — QuantumScape Corporation
------------------------------
-Price: $9.95  Change: 12.43%
-Score: 100/100  Risk: Low  Recommendation: Buy
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-08  macd=0.0332  signal=-0.1591  hist=0.1923
-RSI(14): 60.96
-Volume: current=38966200.0  avg20=22810575.0  ratio=1.71x
-Breakout: level=$14.64  above=-32.04%  window=6m
-Entry: quality=early  ext50=6.86%  ATRmove=-11.19  stop=n/a
-
-ENB — Enbridge Inc
-------------------
-Price: $49.1  Change: 0.59%
-Score: 97/100  Risk: Medium  Recommendation: Watch
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-12  macd=0.6972  signal=0.6962  hist=0.001
-RSI(14): 74.27
-Volume: current=2011500.0  avg20=3220800.0  ratio=0.62x
-Breakout: level=$48.81  above=0.59%  window=6m
-Entry: quality=actionable  ext50=6.33%  ATRmove=1.57  stop=$48.77
-
-RILY — B. Riley Financial, Inc.
--------------------------------
-Price: $6.22  Change: 0.0%
-Score: 97/100  Risk: Low  Recommendation: Buy
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-11  macd=0.1138  signal=0.0713  hist=0.0424
-RSI(14): 60.87
-Volume: current=1032400.0  avg20=1020360.0  ratio=1.01x
-Breakout: level=$6.92  above=-10.12%  window=6m
-Entry: quality=early  ext50=16.27%  ATRmove=-3.07  stop=n/a
-
-SPY — SPDR S&P 500
-------------------
-Price: $657.41  Change: -0.03%
-Score: 97/100  Risk: Low  Recommendation: Buy
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-10  macd=5.477  signal=4.8441  hist=0.6329
-RSI(14): 67.74
-Volume: current=72708800.0  avg20=67515665.0  ratio=1.08x
-Breakout: level=$657.63  above=-0.03%  window=6m
-Entry: quality=early  ext50=3.23%  ATRmove=-0.08  stop=$652.36
-
-VIG — Vanguard Div Appreciation ETF
------------------------------------
-Price: $215.62  Change: -0.42%
-Score: 97/100  Risk: Low  Recommendation: Buy
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-08  macd=1.8921  signal=1.4997  hist=0.3923
-RSI(14): 69.29
-Volume: current=922300.0  avg20=862695.0  ratio=1.07x
-Breakout: level=$216.52  above=-0.42%  window=6m
-Entry: quality=early  ext50=3.26%  ATRmove=-1.03  stop=$214.35
-
-VOO — Vanguard S&P 500 ETF
---------------------------
-Price: $604.44  Change: -0.02%
-Score: 97/100  Risk: Low  Recommendation: Buy
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-10  macd=5.0589  signal=4.4702  hist=0.5887
-RSI(14): 68.1
-Volume: current=8124900.0  avg20=7888080.0  ratio=1.03x
-Breakout: level=$604.57  above=-0.02%  window=6m
-Entry: quality=early  ext50=3.25%  ATRmove=-0.05  stop=$599.89
-
-NBIS — Nebius Group N.V.
-------------------------
-Price: $90.41  Change: 1.37%
-Score: 95/100  Risk: Low  Recommendation: Buy
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-09  macd=6.8527  signal=4.7408  hist=2.1119
-RSI(14): 69.59
-Volume: current=22794900.0  avg20=17336450.0  ratio=1.31x
-Breakout: level=$95.72  above=-5.55%  window=6m
-Entry: quality=early  ext50=45.38%  ATRmove=-1.42  stop=n/a
-
-ORCL — Oracle Corporation
--------------------------
-Price: $292.18  Change: -5.09%
-Score: 95/100  Risk: Medium  Recommendation: Buy
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-10  macd=12.1195  signal=3.9159  hist=8.2037
-RSI(14): 64.47
-Volume: current=51637100.0  avg20=23523630.0  ratio=2.2x
-Breakout: level=$328.33  above=-11.01%  window=6m
-Entry: quality=early  ext50=19.33%  ATRmove=-3.03  stop=n/a
-
-SHLD — Global X Funds Global X Defense
---------------------------------------
-Price: $65.54  Change: 0.31%
-Score: 95/100  Risk: Low  Recommendation: Watch
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-10  macd=0.7644  signal=0.4667  hist=0.2977
-RSI(14): 69.92
-Volume: current=479300.0  avg20=654495.0  ratio=0.73x
-Breakout: level=$65.34  above=0.31%  window=6m
-Entry: quality=early  ext50=6.06%  ATRmove=0.44  stop=$64.72
-
-ARKK — ARK Innovation ETF
--------------------------
-Price: $78.57  Change: 0.34%
-Score: 92/100  Risk: Low  Recommendation: Watch
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-11  macd=0.759  signal=0.5569  hist=0.2021
-RSI(14): 62.33
-Volume: current=8473800.0  avg20=10571460.0  ratio=0.8x
-Breakout: level=$78.3  above=0.34%  window=6m
-Entry: quality=early  ext50=4.63%  ATRmove=0.35  stop=$77.52
-
-JEPQ — JPMorgan Nasdaq Equity Premium 
---------------------------------------
-Price: $56.54  Change: 0.23%
-Score: 92/100  Risk: Medium  Recommendation: Watch
-SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-08  macd=0.5061  signal=0.4404  hist=0.0657
-RSI(14): 70.24
-Volume: current=3745100.0  avg20=5129165.0  ratio=0.73x
-Breakout: level=$56.41  above=0.23%  window=6m
-Entry: quality=early  ext50=3.46%  ATRmove=0.58  stop=$56.14
+MACD: cross=2025-09-10  macd=0.3634  signal=0.3024  hist=0.0611
+RSI(14): 72.44
+Volume: current=288781.0  avg20=224264.0  ratio=1.29x
+Breakout: level=$29.83  above=0.94%  window=6m
+Entry: quality=early  ext50=5.51%  ATRmove=1.49  stop=$29.77
 
 JPM — JP Morgan Chase & Co.
 ---------------------------
-Price: $306.91  Change: 0.44%
+Price: $308.9  Change: 0.65%
+Score: 112/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-11  macd=3.4791  signal=2.6582  hist=0.8209
+RSI(14): 65.6
+Volume: current=7116796.0  avg20=7075779.0  ratio=1.01x
+Breakout: level=$306.91  above=0.65%  window=6m
+Entry: quality=early  ext50=5.01%  ATRmove=0.7  stop=$303.84
+
+SHLD — Global X Funds Global X Defense
+--------------------------------------
+Price: $66.36  Change: 1.25%
+Score: 112/100  Risk: Medium  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=0.9497  signal=0.5633  hist=0.3864
+RSI(14): 72.85
+Volume: current=665880.0  avg20=661664.0  ratio=1.01x
+Breakout: level=$65.54  above=1.25%  window=6m
+Entry: quality=actionable  ext50=7.14%  ATRmove=1.61  stop=$65.45
+
+SPYI — NEOS S&P 500 High Income ETF
+-----------------------------------
+Price: $52.36  Change: 0.28%
+Score: 112/100  Risk: Medium  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=0.417  signal=0.3762  hist=0.0408
+RSI(14): 72.43
+Volume: current=2324961.0  avg20=1925998.0  ratio=1.21x
+Breakout: level=$52.22  above=0.28%  window=6m
+Entry: quality=early  ext50=3.06%  ATRmove=0.92  stop=$52.08
+
+UBER — Uber Technologies, Inc.
+------------------------------
+Price: $98.85  Change: 3.09%
+Score: 112/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-12  macd=1.0828  signal=0.8206  hist=0.2623
+RSI(14): 64.07
+Volume: current=18612299.0  avg20=15426479.0  ratio=1.21x
+Breakout: level=$97.48  above=1.41%  window=6m
+Entry: quality=early  ext50=6.64%  ATRmove=1.02  stop=$96.51
+
+APLD — Applied Digital Corporation
+----------------------------------
+Price: $19.35  Change: 3.59%
+Score: 107/100  Risk: Medium  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-12  macd=1.065  signal=0.8058  hist=0.2592
+RSI(14): 73.08
+Volume: current=30874199.0  avg20=28922299.0  ratio=1.07x
+Breakout: level=$18.68  above=3.59%  window=6m
+Entry: quality=actionable  ext50=43.29%  ATRmove=1.04  stop=$18.49
+
+QBTS — D-Wave Quantum Inc.
+--------------------------
+Price: $18.32  Change: 3.15%
+Score: 100/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-09  macd=0.1133  signal=-0.216  hist=0.3293
+RSI(14): 64.42
+Volume: current=42459693.0  avg20=31323399.0  ratio=1.36x
+Breakout: level=$20.3  above=-9.75%  window=6m
+Entry: quality=early  ext50=8.8%  ATRmove=-4.88  stop=n/a
+
+VST — Vistra Corp.
+------------------
+Price: $213.52  Change: 1.82%
+Score: 97/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=2.6922  signal=0.2291  hist=2.4631
+RSI(14): 64.66
+Volume: current=4143025.0  avg20=3993071.0  ratio=1.04x
+Breakout: level=$214.06  above=-0.25%  window=6m
+Entry: quality=early  ext50=8.38%  ATRmove=-0.13  stop=$211.92
+
+AIQ — Global X Artificial Intelligenc
+-------------------------------------
+Price: $47.96  Change: 1.31%
+Score: 95/100  Risk: Medium  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-08  macd=0.7458  signal=0.4863  hist=0.2596
+RSI(14): 74.87
+Volume: current=1409873.0  avg20=1119638.0  ratio=1.26x
+Breakout: level=$47.34  above=1.31%  window=6m
+Entry: quality=actionable  ext50=6.94%  ATRmove=1.73  stop=$47.32
+
+ORCL — Oracle Corporation
+-------------------------
+Price: $302.14  Change: 3.41%
+Score: 95/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=14.3276  signal=5.9982  hist=8.3293
+RSI(14): 66.77
+Volume: current=35976091.0  avg20=24744734.0  ratio=1.45x
+Breakout: level=$328.33  above=-7.98%  window=6m
+Entry: quality=early  ext50=22.75%  ATRmove=-2.08  stop=n/a
+
+QTUM — Defiance Quantum ETF
+---------------------------
+Price: $100.34  Change: 0.92%
+Score: 95/100  Risk: Medium  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-05  macd=1.5569  signal=0.9977  hist=0.5593
+RSI(14): 72.07
+Volume: current=426370.0  avg20=307483.0  ratio=1.39x
+Breakout: level=$99.43  above=0.92%  window=6m
+Entry: quality=early  ext50=6.61%  ATRmove=1.01  stop=$98.72
+
+ARKK — ARK Innovation ETF
+-------------------------
+Price: $79.72  Change: 1.46%
 Score: 92/100  Risk: Low  Recommendation: Watch
 SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-11  macd=2.9986  signal=2.453  hist=0.5456
-RSI(14): 63.73
-Volume: current=6846200.0  avg20=7086965.0  ratio=0.97x
-Breakout: level=$305.56  above=0.44%  window=6m
-Entry: quality=early  ext50=4.43%  ATRmove=0.48  stop=$302.5
+MACD: cross=2025-09-11  macd=0.9691  signal=0.6394  hist=0.3298
+RSI(14): 65.57
+Volume: current=9852821.0  avg20=10424596.0  ratio=0.95x
+Breakout: level=$78.57  above=1.46%  window=6m
+Entry: quality=early  ext50=5.92%  ATRmove=1.47  stop=$78.31
+
+BND — Vanguard Total Bond Market ETF
+------------------------------------
+Price: $74.71  Change: 0.19%
+Score: 92/100  Risk: Medium  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-04  macd=0.4174  signal=0.339  hist=0.0784
+RSI(14): 72.2
+Volume: current=7181031.0  avg20=6197191.0  ratio=1.16x
+Breakout: level=$74.66  above=0.07%  window=6m
+Entry: quality=early  ext50=2.06%  ATRmove=0.31  stop=$74.42
+
+CORZ — Core Scientific, Inc.
+----------------------------
+Price: $16.32  Change: 2.9%
+Score: 92/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=0.4718  signal=0.2305  hist=0.2413
+RSI(14): 68.48
+Volume: current=20103505.0  avg20=14118920.0  ratio=1.42x
+Breakout: level=$18.0  above=-9.33%  window=6m
+Entry: quality=early  ext50=16.59%  ATRmove=-4.65  stop=n/a
+
+GS — Goldman Sachs Group, Inc. (The)
+------------------------------------
+Price: $786.76  Change: 0.86%
+Score: 92/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-09  macd=15.9273  signal=12.0117  hist=3.9155
+RSI(14): 69.68
+Volume: current=1275821.0  avg20=1657241.0  ratio=0.77x
+Breakout: level=$784.73  above=0.26%  window=6m
+Entry: quality=early  ext50=8.26%  ATRmove=0.25  stop=$776.88
+
+MIELY — Mitsubishi Electric Corp.
+---------------------------------
+Price: $52.54  Change: 0.56%
+Score: 92/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-11  macd=1.1733  signal=0.9555  hist=0.2177
+RSI(14): 68.49
+Volume: current=7394.0  avg20=45199.0  ratio=0.16x
+Breakout: level=$52.45  above=0.17%  window=6m
+Entry: quality=early  ext50=11.72%  ATRmove=0.13  stop=$51.93
+
+NBIS — Nebius Group N.V.
+------------------------
+Price: $90.96  Change: 0.61%
+Score: 92/100  Risk: Low  Recommendation: Buy
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-09  macd=7.3085  signal=5.2543  hist=2.0542
+RSI(14): 69.94
+Volume: current=19264218.0  avg20=17837780.0  ratio=1.08x
+Breakout: level=$95.72  above=-4.97%  window=6m
+Entry: quality=early  ext50=44.37%  ATRmove=-1.29  stop=n/a
+
+QQQ — Invesco QQQ Trust, Series 1
+---------------------------------
+Price: $591.68  Change: 0.86%
+Score: 92/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-09  macd=5.2604  signal=3.9581  hist=1.3024
+RSI(14): 69.85
+Volume: current=41624134.0  avg20=48946901.0  ratio=0.85x
+Breakout: level=$586.66  above=0.86%  window=6m
+Entry: quality=actionable  ext50=4.05%  ATRmove=1.59  stop=$585.99
+
+QQQI — NEOS Nasdaq 100 High Income ETF
+--------------------------------------
+Price: $54.18  Change: 0.5%
+Score: 92/100  Risk: Medium  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-09  macd=0.4442  signal=0.3685  hist=0.0757
+RSI(14): 70.45
+Volume: current=3025743.0  avg20=3108412.0  ratio=0.97x
+Breakout: level=$53.91  above=0.5%  window=6m
+Entry: quality=early  ext50=3.45%  ATRmove=1.25  stop=$53.79
+
+SCHX — Schwab U.S. Large-Cap ETF
+--------------------------------
+Price: $26.17  Change: 0.46%
+Score: 92/100  Risk: Medium  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=0.2394  signal=0.2057  hist=0.0337
+RSI(14): 70.31
+Volume: current=7484130.0  avg20=11675486.0  ratio=0.64x
+Breakout: level=$26.07  above=0.38%  window=6m
+Entry: quality=early  ext50=3.63%  ATRmove=0.9  stop=$25.97
 
 SMH — VanEck Semiconductor ETF
 ------------------------------
-Price: $304.32  Change: 0.13%
+Price: $307.17  Change: 0.94%
 Score: 92/100  Risk: Low  Recommendation: Watch
 SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-10  macd=2.9712  signal=2.0395  hist=0.9317
-RSI(14): 64.31
-Volume: current=5231200.0  avg20=7721270.0  ratio=0.68x
-Breakout: level=$303.93  above=0.13%  window=6m
-Entry: quality=early  ext50=4.35%  ATRmove=0.15  stop=$300.89
+MACD: cross=2025-09-10  macd=3.5402  signal=2.3396  hist=1.2006
+RSI(14): 66.95
+Volume: current=5324839.0  avg20=7536196.0  ratio=0.71x
+Breakout: level=$304.32  above=0.94%  window=6m
+Entry: quality=early  ext50=5.16%  ATRmove=1.05  stop=$302.26
+
+SOFI — SoFi Technologies, Inc.
+------------------------------
+Price: $27.67  Change: 4.22%
+Score: 92/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-15  macd=1.1199  signal=1.0768  hist=0.0431
+RSI(14): 69.25
+Volume: current=65837686.0  avg20=68022889.0  ratio=0.97x
+Breakout: level=$26.55  above=4.22%  window=6m
+Entry: quality=actionable  ext50=19.81%  ATRmove=1.98  stop=$26.65
+
+SPY — SPDR S&P 500
+------------------
+Price: $660.91  Change: 0.53%
+Score: 92/100  Risk: Medium  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=5.9535  signal=5.066  hist=0.8875
+RSI(14): 70.47
+Volume: current=63411672.0  avg20=67256623.0  ratio=0.94x
+Breakout: level=$657.63  above=0.5%  window=6m
+Entry: quality=early  ext50=3.67%  ATRmove=1.15  stop=$655.77
 
 SPYG — SPDR Series Trust SPDR Portfoli
 --------------------------------------
-Price: $103.04  Change: 0.15%
-Score: 92/100  Risk: Low  Recommendation: Watch
+Price: $104.06  Change: 0.99%
+Score: 92/100  Risk: Medium  Recommendation: Watch
 SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-09  macd=1.1044  signal=0.8583  hist=0.246
-RSI(14): 69.64
-Volume: current=1983900.0  avg20=2354940.0  ratio=0.84x
-Breakout: level=$102.89  above=0.15%  window=6m
-Entry: quality=early  ext50=4.38%  ATRmove=0.26  stop=$102.01
+MACD: cross=2025-09-09  macd=1.2503  signal=0.9367  hist=0.3135
+RSI(14): 73.21
+Volume: current=1873207.0  avg20=2355770.0  ratio=0.8x
+Breakout: level=$103.04  above=0.99%  window=6m
+Entry: quality=actionable  ext50=5.24%  ATRmove=1.62  stop=$102.92
 
-WULF — TeraWulf Inc.
---------------------
-Price: $10.76  Change: 1.13%
-Score: 87/100  Risk: High  Recommendation: Watch
+VOO — Vanguard S&P 500 ETF
+--------------------------
+Price: $607.59  Change: 0.52%
+Score: 92/100  Risk: Medium  Recommendation: Watch
 SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-11  macd=1.029  signal=0.9981  hist=0.0309
-RSI(14): 76.11
-Volume: current=28042200.0  avg20=56096600.0  ratio=0.5x
-Breakout: level=$10.64  above=1.13%  window=6m
-Entry: quality=early  ext50=55.66%  ATRmove=0.44  stop=$10.53
+MACD: cross=2025-09-10  macd=5.4943  signal=4.675  hist=0.8192
+RSI(14): 70.78
+Volume: current=7087685.0  avg20=7882649.0  ratio=0.9x
+Breakout: level=$604.57  above=0.5%  window=6m
+Entry: quality=early  ext50=3.68%  ATRmove=1.17  stop=$602.96
+
+CLF — Cleveland-Cliffs Inc.
+---------------------------
+Price: $11.89  Change: 1.8%
+Score: 90/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-05  macd=0.4232  signal=0.3293  hist=0.0939
+RSI(14): 66.49
+Volume: current=21873831.0  avg20=16875051.0  ratio=1.3x
+Breakout: level=$11.79  above=0.85%  window=6m
+Entry: quality=early  ext50=15.05%  ATRmove=0.39  stop=$11.67
 
 TSLA — Tesla, Inc.
 ------------------
-Price: $395.94  Change: 7.36%
+Price: $410.04  Change: 3.56%
+Score: 90/100  Risk: High  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-05  macd=14.3957  signal=8.1397  hist=6.2559
+RSI(14): 77.76
+Volume: current=162978139.0  avg20=84523621.0  ratio=1.93x
+Breakout: level=$395.94  above=3.56%  window=6m
+Entry: quality=actionable  ext50=24.1%  ATRmove=1.69  stop=$395.0
+
+HSAI — Hesai Group
+------------------
+Price: $29.8  Change: 4.31%
+Score: 87/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-08-07  macd=1.584  signal=1.3712  hist=0.2128
+RSI(14): 67.54
+Volume: current=4286869.0  avg20=3306538.0  ratio=1.3x
+Breakout: level=$28.79  above=3.51%  window=6m
+Entry: quality=actionable  ext50=25.98%  ATRmove=1.05  stop=$28.5
+
+KTOS — Kratos Defense & Security Solut
+--------------------------------------
+Price: $70.74  Change: 2.23%
+Score: 87/100  Risk: Low  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-08-11  macd=1.8483  signal=1.8783  hist=-0.03
+RSI(14): 67.94
+Volume: current=3387359.0  avg20=2806392.0  ratio=1.21x
+Breakout: level=$69.2  above=2.23%  window=6m
+Entry: quality=early  ext50=15.66%  ATRmove=1.37  stop=$68.71
+
+RDDT — Reddit, Inc.
+-------------------
+Price: $263.64  Change: 3.68%
+Score: 87/100  Risk: Medium  Recommendation: Watch
+SMA Status: 10d=Y  50d=Y  200d=Y
+MACD: cross=2025-09-10  macd=15.9284  signal=14.3569  hist=1.5714
+RSI(14): 70.37
+Volume: current=4573424.0  avg20=5805566.0  ratio=0.79x
+Breakout: level=$260.54  above=1.19%  window=6m
+Entry: quality=early  ext50=33.84%  ATRmove=0.41  stop=$257.93
+
+FSLY — Fastly, Inc.
+-------------------
+Price: $8.76  Change: 13.32%
 Score: 85/100  Risk: High  Recommendation: Watch
 SMA Status: 10d=Y  50d=Y  200d=Y
-MACD: cross=2025-09-05  macd=10.7033  signal=6.5758  hist=4.1275
-RSI(14): 74.84
-Volume: current=167721600.0  avg20=80090705.0  ratio=2.09x
-Breakout: level=$368.81  above=7.36%  window=6m
-Entry: quality=late  ext50=20.52%  ATRmove=3.47  stop=$381.87
+MACD: cross=2025-08-08  macd=0.2454  signal=0.1564  hist=0.089
+RSI(14): 69.49
+Volume: current=9030770.0  avg20=2685703.0  ratio=3.36x
+Breakout: level=$8.28  above=5.8%  window=6m
+Entry: quality=actionable  ext50=22.17%  ATRmove=2.07  stop=$8.34
 

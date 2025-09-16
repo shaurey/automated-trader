@@ -110,6 +110,42 @@ curl "http://localhost:8001/api/holdings/positions?limit=10"
 open http://localhost:8001/docs
 ```
 
+### MCP Server (Model Context Protocol)
+
+This project ships an experimental MCP server that exposes the backend API as MCP tools for AI assistants / IDE agents.
+
+Location: `mcp_server/server.py`
+
+Tools exposed:
+- `health_check`
+- `get_portfolio_summary`
+- `list_positions` (filters: account, ticker, limit, offset)
+- `list_accounts`
+- `get_instruments` (filters: page, size, ticker, sector, instrument_type)
+- `get_holding_detail` (ticker)
+
+#### Run the MCP server (stdio)
+
+```
+pip install -r mcp_server/requirements.txt
+python -m mcp_server.server
+```
+
+Environment variables:
+```
+AT_BACKEND_BASE_URL=http://localhost:8000/api  # Override backend base URL (optional)
+```
+
+#### Example MCP client tool invocation (conceptual)
+```
+call_tool name=list_positions arguments={"account": "MAIN", "limit": 10}
+```
+
+#### Adding New Tools
+Edit `mcp_server/server.py` and append to the `TOOLS` dict with `description`, `params`, and `path` keys.
+
+> NOTE: The MCP server uses simple passthrough HTTP GETs. If you introduce POST/PUT endpoints later, extend `BackendClient` with additional methods and branch in `call_tool`.
+
 ## 📈 Portfolio Data
 
 - **Total Value**: $13,476,779.41
@@ -139,6 +175,10 @@ open http://localhost:8001/docs
 ## 📝 Documentation
 
 For comprehensive documentation, see [PHASE_1_COMPLETION_REPORT.md](./PHASE_1_COMPLETION_REPORT.md)
+
+### Run & Operations Guide
+
+For end-to-end setup (backend, frontend, MCP server, data scripts) see the consolidated [RUN_GUIDE.md](./RUN_GUIDE.md).
 
 ## 🐛 Issues & Support
 

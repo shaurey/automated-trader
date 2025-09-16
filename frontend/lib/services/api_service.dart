@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/holdings.dart';
+import '../models/strategies.dart';
 
 class ApiService {
   static const String baseUrl = 'http://localhost:8000';
@@ -69,6 +70,40 @@ class ApiService {
     }
   }
 
+  // Accounts endpoint
+  static Future<List<String>> getAccounts() async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/holdings/accounts');
+      final response = await _client
+          .get(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData is Map && jsonData['accounts'] is List) {
+          final accounts = (jsonData['accounts'] as List)
+              .map((e) => (e['account'] ?? '').toString())
+              .where((s) => s.isNotEmpty)
+              .toList();
+          return accounts;
+        } else {
+          throw ApiException('Unexpected accounts response shape', response.statusCode);
+        }
+      } else {
+        throw ApiException(
+          'Failed to load accounts: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
   // Instruments endpoint
   static Future<Map<String, dynamic>> getInstruments({
     int? page,
@@ -124,6 +159,162 @@ class ApiService {
       } else {
         throw ApiException(
           'Health check failed: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
+  // Strategies endpoints
+  static Future<StrategyRunsResponse> getStrategyRuns({
+    String? strategyCode,
+    String? status,
+    String? dateFrom,
+    String? dateTo,
+    int? limit,
+    int? offset,
+    String? orderBy,
+    bool? orderDesc,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (strategyCode != null) queryParams['strategy_code'] = strategyCode;
+      if (status != null) queryParams['status'] = status;
+      if (dateFrom != null) queryParams['date_from'] = dateFrom;
+      if (dateTo != null) queryParams['date_to'] = dateTo;
+      if (limit != null) queryParams['limit'] = limit.toString();
+      if (offset != null) queryParams['offset'] = offset.toString();
+      if (orderBy != null) queryParams['order_by'] = orderBy;
+      if (orderDesc != null) queryParams['order_desc'] = orderDesc.toString();
+
+      final uri = Uri.parse('$baseUrl/api/strategies/runs')
+          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+
+      final response = await _client
+          .get(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return StrategyRunsResponse.fromJson(jsonData);
+      } else {
+        throw ApiException(
+          'Failed to load strategy runs: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<StrategyRunDetail> getStrategyRunDetail(String runId) async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('$baseUrl/api/strategies/runs/$runId'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return StrategyRunDetail.fromJson(jsonData);
+      } else {
+        throw ApiException(
+          'Failed to load strategy run detail: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<StrategyResultsResponse> getStrategyRunResults(
+    String runId, {
+    bool? passed,
+    double? minScore,
+    double? maxScore,
+    String? classification,
+    String? ticker,
+    String? sector,
+    int? limit,
+    int? offset,
+    String? orderBy,
+    bool? orderDesc,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (passed != null) queryParams['passed'] = passed.toString();
+      if (minScore != null) queryParams['min_score'] = minScore.toString();
+      if (maxScore != null) queryParams['max_score'] = maxScore.toString();
+      if (classification != null) queryParams['classification'] = classification;
+      if (ticker != null) queryParams['ticker'] = ticker;
+      if (sector != null) queryParams['sector'] = sector;
+      if (limit != null) queryParams['limit'] = limit.toString();
+      if (offset != null) queryParams['offset'] = offset.toString();
+      if (orderBy != null) queryParams['order_by'] = orderBy;
+      if (orderDesc != null) queryParams['order_desc'] = orderDesc.toString();
+
+      final uri = Uri.parse('$baseUrl/api/strategies/runs/$runId/results')
+          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+
+      final response = await _client
+          .get(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return StrategyResultsResponse.fromJson(jsonData);
+      } else {
+        throw ApiException(
+          'Failed to load strategy run results: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<StrategyLatestResponse> getLatestStrategyRuns({
+    String? strategyCodes,
+    int? limit,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (strategyCodes != null) queryParams['strategy_codes'] = strategyCodes;
+      if (limit != null) queryParams['limit'] = limit.toString();
+
+      final uri = Uri.parse('$baseUrl/api/strategies/latest')
+          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+
+      final response = await _client
+          .get(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return StrategyLatestResponse.fromJson(jsonData);
+      } else {
+        throw ApiException(
+          'Failed to load latest strategy runs: ${response.statusCode}',
           response.statusCode,
         );
       }

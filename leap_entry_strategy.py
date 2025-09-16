@@ -54,6 +54,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Tuple, Iterable
 from db import Database  # new import
 import sqlite3
+import time as _time  # for DB retry backoff
 
 # ------------------------------- Data Classes -------------------------------
 
@@ -517,10 +518,140 @@ def main(argv: Optional[List[str]] = None) -> int:
         avwap_penalty_points=args.avwap_penalty_points,
     )
 
+    # Run evaluation
     results = run_leap_screener(tickers, cfg)
-    # Write text
+
+    # Optional DB logging (mirrors bullish strategy approach)
+    run_id: Optional[str] = None
+    if args.db_path:
+        try:
+            db = Database(args.db_path)
+            # Skip schema DDL on each run to minimize lock contention
+            db.connect(skip_schema=True)
+            # Set busy timeout to mitigate locking if backend holds write locks briefly
+            try:
+                if db.conn:
+                    db.conn.execute("PRAGMA busy_timeout=5000")
+            except Exception:
+                pass
+
+            params_dict = {}
+            for k, v in vars(args).items():
+                if k not in ("db_path", "tickers_file"):
+                    params_dict[k] = v
+
+            # Retry wrapper for operations that can raise 'database is locked'
+            def _retry(op_name, func, *f_args, **f_kwargs):
+                attempts = 5
+                delay = 0.4
+                for attempt in range(1, attempts + 1):
+                    try:
+                        return func(*f_args, **f_kwargs)
+                    except Exception as e:  # noqa: BLE001
+                        msg = str(e).lower()
+                        if 'database is locked' in msg and attempt < attempts:
+                            print(f"[DB] {op_name} locked (attempt {attempt}/{attempts}) retrying in {delay:.1f}s")
+                            _time.sleep(delay)
+                            delay *= 1.6
+                            continue
+                        raise
+                return None
+
+            # Start run with retry
+            try:
+                run_id = _retry(
+                    'start_run',
+                    db.start_run,
+                    strategy_code='leap_entry',
+                    version='1.0',
+                    params=params_dict,
+                    universe_source=(args.tickers_file if args.tickers_file else 'list'),
+                    universe_size=len(tickers),
+                    min_score=cfg.min_score,
+                )
+            except Exception as e:  # noqa: BLE001
+                # Fallback: attempt a one-off direct connection just for start_run
+                print(f"[DB] start_run failed: {e}")
+                try:
+                    tmp = Database(args.db_path)
+                    tmp.connect(skip_schema=True)
+                    run_id = tmp.start_run(
+                        strategy_code='leap_entry',
+                        version='1.0',
+                        params=params_dict,
+                        universe_source=(args.tickers_file if args.tickers_file else 'list'),
+                        universe_size=len(tickers),
+                        min_score=cfg.min_score,
+                    )
+                    tmp.conn.close()
+                    print(f"[DB] start_run fallback succeeded run_id={run_id}")
+                except Exception as e2:  # noqa: BLE001
+                    print(f"[DB] start_run fallback failed: {e2}")
+                    run_id = None
+
+            # Log results
+            if run_id:
+                for r in results:
+                    try:
+                        try:
+                            _retry(
+                                'log_result',
+                                db.log_result,
+                                run_id=run_id,
+                                strategy_code='leap_entry',
+                                ticker=r.ticker,
+                                passed=r.passed,
+                                score=r.score,
+                                classification=r.classification,
+                                reasons=r.reasons,
+                                metrics=r.metrics,
+                            )
+                        except Exception as e_inner:  # noqa: BLE001
+                            # Fallback per-row connection
+                            if 'database is locked' in str(e_inner).lower():
+                                try:
+                                    tmp = Database(args.db_path)
+                                    tmp.connect(skip_schema=True)
+                                    tmp.log_result(
+                                        run_id=run_id,
+                                        strategy_code='leap_entry',
+                                        ticker=r.ticker,
+                                        passed=r.passed,
+                                        score=r.score,
+                                        classification=r.classification,
+                                        reasons=r.reasons,
+                                        metrics=r.metrics,
+                                    )
+                                    if tmp.conn:
+                                        tmp.conn.close()
+                                    print(f"[DB] log_result fallback {r.ticker} ok")
+                                except Exception as e_f:  # noqa: BLE001
+                                    print(f"[DB] log_result fallback failed {r.ticker}: {e_f}")
+                            else:
+                                raise
+                    except Exception as e:  # noqa: BLE001
+                        print(f"[DB] log_result error {r.ticker}: {e}")
+                try:
+                    try:
+                        _retry('finalize_run', db.finalize_run, run_id)
+                    except Exception as fin_e:  # noqa: BLE001
+                        if 'database is locked' in str(fin_e).lower():
+                            tmp = Database(args.db_path)
+                            tmp.connect(skip_schema=True)
+                            tmp.finalize_run(run_id)
+                            if tmp.conn:
+                                tmp.conn.close()
+                            print("[DB] finalize_run fallback ok")
+                        else:
+                            raise
+                except Exception as e:  # noqa: BLE001
+                    print(f"[DB] finalize_run error: {e}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[DB] run logging disabled: {e}")
+
+    # Write text summary
     _write_text(results, cfg.output_file)
-    # Write CSV
+    # Write CSV details
     try:
         pd, _, _ = _lazy()
         if cfg.details_file:
@@ -529,7 +660,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         pass
 
     passed = sum(r.passed for r in results)
-    print(f"Evaluated {len(results)} symbols. Passed: {passed}. Details -> {cfg.details_file or 'skipped'}")
+    print(f"Evaluated {len(results)} symbols. Passed: {passed}. Details -> {cfg.details_file or 'skipped'} RunID -> {run_id or 'n/a'}")
     return 0
 
 if __name__ == "__main__":

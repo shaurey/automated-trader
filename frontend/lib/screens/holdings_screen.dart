@@ -12,10 +12,6 @@ class HoldingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filteredPositionsAsync = ref.watch(filteredPositionsProvider);
-    final searchQuery = ref.watch(searchQueryProvider);
-    final selectedAccount = ref.watch(selectedAccountProvider);
-    final selectedSector = ref.watch(selectedSectorProvider);
-    final sortMode = ref.watch(sortModeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -56,11 +52,10 @@ class HoldingsScreen extends ConsumerWidget {
   }
 
   Widget _buildFiltersSection(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final searchQuery = ref.watch(searchQueryProvider);
     final selectedAccount = ref.watch(selectedAccountProvider);
-    final selectedSector = ref.watch(selectedSectorProvider);
+    final selectedStyle = ref.watch(selectedStyleProvider);
     final sortMode = ref.watch(sortModeProvider);
+    final accountsAsync = ref.watch(accountsProvider);
 
     return Card(
       margin: const EdgeInsets.all(16),
@@ -121,17 +116,33 @@ class HoldingsScreen extends ConsumerWidget {
                       isDense: true,
                     ),
                     value: selectedAccount,
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('All Accounts'),
-                      ),
-                      // TODO: Load actual accounts from API
-                      const DropdownMenuItem<String?>(
-                        value: 'MAIN',
-                        child: Text('MAIN'),
-                      ),
-                    ],
+                    items: accountsAsync.when<List<DropdownMenuItem<String?>>>(
+                      data: (accounts) {
+                        final items = <DropdownMenuItem<String?>>[
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('All Accounts'),
+                          ),
+                        ];
+                        items.addAll(accounts.map((acct) => DropdownMenuItem<String?>(
+                              value: acct,
+                              child: Text(acct),
+                            )));
+                        return items;
+                      },
+                      loading: () => const [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Loading...'),
+                        )
+                      ],
+                      error: (err, st) => const [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('All Accounts'),
+                        )
+                      ],
+                    ),
                     onChanged: (value) {
                       ref.read(selectedAccountProvider.notifier).state = value;
                     },
@@ -141,32 +152,32 @@ class HoldingsScreen extends ConsumerWidget {
                 Expanded(
                   child: DropdownButtonFormField<String?>(
                     decoration: const InputDecoration(
-                      labelText: 'Sector',
+                      labelText: 'Style',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    value: selectedSector,
+                    value: selectedStyle,
                     items: [
                       const DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('All Sectors'),
+                        child: Text('All Styles'),
                       ),
-                      // TODO: Load actual sectors from API
+                      // TODO: Load actual styles from API
                       const DropdownMenuItem<String?>(
-                        value: 'Technology',
-                        child: Text('Technology'),
-                      ),
-                      const DropdownMenuItem<String?>(
-                        value: 'Healthcare',
-                        child: Text('Healthcare'),
+                        value: 'growth',
+                        child: Text('Growth'),
                       ),
                       const DropdownMenuItem<String?>(
-                        value: 'Financial Services',
-                        child: Text('Financial Services'),
+                        value: 'value',
+                        child: Text('Value'),
+                      ),
+                      const DropdownMenuItem<String?>(
+                        value: 'income',
+                        child: Text('Income'),
                       ),
                     ],
                     onChanged: (value) {
-                      ref.read(selectedSectorProvider.notifier).state = value;
+                      ref.read(selectedStyleProvider.notifier).state = value;
                     },
                   ),
                 ),
@@ -175,7 +186,7 @@ class HoldingsScreen extends ConsumerWidget {
                   onPressed: () {
                     ref.read(searchQueryProvider.notifier).state = '';
                     ref.read(selectedAccountProvider.notifier).state = null;
-                    ref.read(selectedSectorProvider.notifier).state = null;
+                    ref.read(selectedStyleProvider.notifier).state = null;
                     ref.read(sortModeProvider.notifier).state = SortMode.valueDesc;
                   },
                   icon: const Icon(Icons.clear),
@@ -228,7 +239,7 @@ class HoldingsScreen extends ConsumerWidget {
               DataColumn(label: Text('Gain/Loss')),
               DataColumn(label: Text('% Change')),
               DataColumn(label: Text('Weight')),
-              DataColumn(label: Text('Sector')),
+              DataColumn(label: Text('Style')),
             ],
             rows: positions.map((position) {
               final isPositive = (position.unrealizedGainLoss ?? 0) >= 0;
@@ -290,7 +301,7 @@ class HoldingsScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        position.sector ?? '—',
+                        position.styleCategory ?? '—',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSecondaryContainer,
                         ),
@@ -359,7 +370,7 @@ class HoldingsScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    position.sector ?? '—',
+                    position.styleCategory ?? '—',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSecondaryContainer,
                     ),
