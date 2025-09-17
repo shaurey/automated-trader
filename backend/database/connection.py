@@ -1,159 +1,238 @@
-"""Database connection and session management for the FastAPI application.
+"""
+Database Connection Module for Simplified Execution System
 
-This module provides database connection utilities that integrate with
-the existing SQLite database and db.py module.
+This module provides database connection utilities for the simplified
+strategy execution system.
 """
 
-import os
 import sqlite3
-from contextlib import contextmanager
-from typing import Generator, Optional
+import os
+import logging
+from typing import Optional
 
-from .models import DatabaseConfig
+logger = logging.getLogger(__name__)
+
+# Database path - default to existing database location
+DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "at_data.sqlite")
+DB_PATH = os.getenv("DATABASE_PATH", DEFAULT_DB_PATH)
+
+
+def get_db_connection() -> sqlite3.Connection:
+    """
+    Get database connection for strategy execution.
+    
+    Returns:
+        SQLite connection with row factory enabled
+    """
+    try:
+        # Use check_same_thread=False to allow cross-thread access
+        db = sqlite3.connect(DB_PATH, check_same_thread=False)
+        db.row_factory = sqlite3.Row  # Enable column access by name
+        return db
+    except Exception as e:
+        logger.error(f"Failed to connect to database at {DB_PATH}: {e}")
+        raise
+
+
+def initialize_execution_tables(db_connection: sqlite3.Connection):
+    """
+    Initialize tables required for simplified execution tracking.
+    
+    Args:
+        db_connection: SQLite database connection
+    """
+    try:
+        # Create simplified execution tracking tables for the new system
+        # Note: We keep the existing strategy_run table as-is and add new tables
+        
+        # Create strategy_execution_status table for simplified execution tracking
+        db_connection.execute('''
+            CREATE TABLE IF NOT EXISTS strategy_execution_status (
+                run_id TEXT PRIMARY KEY,
+                strategy_code TEXT NOT NULL,
+                execution_status TEXT DEFAULT 'queued',
+                total_count INTEGER DEFAULT 0,
+                processed_count INTEGER DEFAULT 0,
+                qualifying_count INTEGER DEFAULT 0,
+                current_ticker TEXT,
+                progress_percent REAL DEFAULT 0.0,
+                execution_started_at TEXT,
+                last_progress_update TEXT,
+                execution_time_ms INTEGER,
+                summary TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create strategy_execution_progress table if it doesn't exist
+        db_connection.execute('''
+            CREATE TABLE IF NOT EXISTS strategy_execution_progress (
+                run_id TEXT NOT NULL,
+                ticker TEXT NOT NULL,
+                sequence_number INTEGER DEFAULT 0,
+                processed_at TEXT,
+                passed BOOLEAN DEFAULT 0,
+                score REAL DEFAULT 0.0,
+                classification TEXT,
+                error_message TEXT,
+                processing_time_ms INTEGER DEFAULT 0,
+                PRIMARY KEY (run_id, ticker),
+                FOREIGN KEY (run_id) REFERENCES strategy_execution_status (run_id)
+            )
+        ''')
+        
+        # Create indexes for performance
+        db_connection.execute('''
+            CREATE INDEX IF NOT EXISTS idx_strategy_execution_status
+            ON strategy_execution_status (execution_status)
+        ''')
+        
+        db_connection.execute('''
+            CREATE INDEX IF NOT EXISTS idx_execution_progress_run_sequence
+            ON strategy_execution_progress (run_id, sequence_number)
+        ''')
+        
+        db_connection.commit()
+        logger.info("Execution tracking tables initialized successfully")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize execution tables: {e}")
+        raise
+
+
+def verify_database_schema(db_connection: sqlite3.Connection) -> bool:
+    """
+    Verify that required tables exist in the database.
+    
+    Args:
+        db_connection: SQLite database connection
+        
+    Returns:
+        True if schema is valid, False otherwise
+    """
+    try:
+        # Check if required tables exist
+        cursor = db_connection.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name IN ('strategy_execution_status', 'strategy_execution_progress')
+        """)
+        
+        existing_tables = [row[0] for row in cursor.fetchall()]
+        required_tables = ['strategy_execution_status', 'strategy_execution_progress']
+        
+        missing_tables = set(required_tables) - set(existing_tables)
+        
+        if missing_tables:
+            logger.warning(f"Missing tables: {missing_tables}")
+            return False
+        
+        logger.info("Database schema verification passed")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Database schema verification failed: {e}")
+        return False
+
+
+def setup_database() -> sqlite3.Connection:
+    """
+    Setup database connection and ensure required tables exist.
+    
+    Returns:
+        Configured database connection
+    """
+    try:
+        db = get_db_connection()
+        
+        # Verify or create schema
+        if not verify_database_schema(db):
+            logger.info("Initializing missing database tables...")
+            initialize_execution_tables(db)
+        
+        return db
+        
+    except Exception as e:
+        logger.error(f"Database setup failed: {e}")
+        raise
+
+
+# Module-level connection for dependency injection
+_db_connection: Optional[sqlite3.Connection] = None
+
+
+def get_db() -> sqlite3.Connection:
+    """
+    Get global database connection for dependency injection.
+    
+    Returns:
+        Database connection instance
+    """
+    global _db_connection
+    if _db_connection is None:
+        _db_connection = setup_database()
+    return _db_connection
+
+
+# Backward compatibility functions for existing code
+def get_database_connection() -> sqlite3.Connection:
+    """
+    Backward compatibility function for existing imports.
+    
+    Returns:
+        Database connection instance
+    """
+    return get_db_connection()
 
 
 class DatabaseManager:
-    """Database connection manager for SQLite operations."""
+    """Database manager class for backward compatibility with existing code."""
     
-    def __init__(self, db_path: Optional[str] = None):
-        """Initialize database manager.
-        
-        Args:
-            db_path: Path to SQLite database file. If None, uses default from environment.
+    def __init__(self, db_path: str = None):
+        """Initialize database manager with optional path."""
+        self.db_path = db_path or DB_PATH
+        self._connection = None
+    
+    def get_connection(self) -> sqlite3.Connection:
+        """Get database connection."""
+        if self._connection is None:
+            self._connection = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._connection.row_factory = sqlite3.Row
+        return self._connection
+    
+    def execute_query(self, query: str, params: tuple = ()) -> sqlite3.Cursor:
+        """Execute a query and return cursor."""
+        conn = self.get_connection()
+        return conn.execute(query, params)
+
+    def execute_one(self, query: str, params: tuple = ()):
+        """Execute a query expected to return a single row.
+
+        Returns the first row (as sqlite3.Row) or None if no rows.
+        Mirrors the older helper used by legacy code.
         """
-        if db_path is None:
-            # Default to existing database location
-            default_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                "at_data.sqlite"
-            )
-            db_path = os.getenv("DATABASE_PATH", default_path)
-        
-        self.db_path = db_path
-        self._ensure_database_exists()
+        cur = self.execute_query(query, params)
+        return cur.fetchone()
     
-    def _ensure_database_exists(self):
-        """Ensure the database file exists and is accessible."""
-        if not os.path.exists(self.db_path):
-            raise FileNotFoundError(f"Database file not found: {self.db_path}")
-        
-        # Test connection
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute("SELECT 1")
-        except Exception as e:
-            raise RuntimeError(f"Cannot connect to database: {e}")
+    def commit(self):
+        """Commit transaction."""
+        if self._connection:
+            self._connection.commit()
     
-    @contextmanager
-    def get_connection(self) -> Generator[sqlite3.Connection, None, None]:
-        """Get a database connection context manager.
-        
-        Yields:
-            sqlite3.Connection: Database connection with row factory set
-        """
-        conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        conn.row_factory = sqlite3.Row  # Enable column access by name
-        conn.execute("PRAGMA foreign_keys=ON")  # Enable foreign key constraints
-        
-        try:
-            yield conn
-        except Exception:
-            conn.rollback()
-            raise
-        else:
-            conn.commit()
-        finally:
-            conn.close()
-    
-    @contextmanager
-    def get_cursor(self) -> Generator[sqlite3.Cursor, None, None]:
-        """Get a database cursor context manager.
-        
-        Yields:
-            sqlite3.Cursor: Database cursor for executing queries
-        """
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                yield cursor
-            finally:
-                cursor.close()
-    
-    def execute_query(self, query: str, params: tuple = ()) -> list:
-        """Execute a SELECT query and return all results.
-        
-        Args:
-            query: SQL query string
-            params: Query parameters tuple
-            
-        Returns:
-            List of sqlite3.Row objects
-        """
-        with self.get_cursor() as cursor:
-            cursor.execute(query, params)
-            return cursor.fetchall()
-    
-    def execute_one(self, query: str, params: tuple = ()) -> Optional[sqlite3.Row]:
-        """Execute a SELECT query and return first result.
-        
-        Args:
-            query: SQL query string
-            params: Query parameters tuple
-            
-        Returns:
-            sqlite3.Row object or None if no results
-        """
-        with self.get_cursor() as cursor:
-            cursor.execute(query, params)
-            return cursor.fetchone()
-    
-    def execute_update(self, query: str, params: tuple = ()) -> int:
-        """Execute an INSERT/UPDATE/DELETE query.
-        
-        Args:
-            query: SQL query string
-            params: Query parameters tuple
-            
-        Returns:
-            Number of affected rows
-        """
-        with self.get_cursor() as cursor:
-            cursor.execute(query, params)
-            return cursor.rowcount
+    def close(self):
+        """Close connection."""
+        if self._connection:
+            self._connection.close()
+            self._connection = None
 
 
-# Global database manager instance
-db_manager = DatabaseManager()
-
-
-def get_db_manager() -> DatabaseManager:
-    """Get the global database manager instance.
+def get_db_manager(db_path: str = None):
+    """
+    Get database manager instance for backward compatibility.
     
+    Args:
+        db_path: Optional database path
+        
     Returns:
-        DatabaseManager: The global database manager
+        DatabaseManager instance
     """
-    return db_manager
-
-
-# Dependency for FastAPI routes
-def get_database_connection():
-    """FastAPI dependency to get database connection.
-    
-    Yields:
-        sqlite3.Connection: Database connection for use in routes
-    """
-    # Create a fresh connection for each request to avoid threading issues
-    conn = None
-    try:
-        # Allow SQLite connection to be used across threads
-        conn = sqlite3.connect(db_manager.db_path, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys=ON")
-        yield conn
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise
-    finally:
-        if conn:
-            conn.close()
+    return DatabaseManager(db_path)

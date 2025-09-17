@@ -385,3 +385,341 @@ class StrategyLatestResponse {
     );
   }
 }
+
+// Strategy Execution Models for Real-Time Progress Tracking
+
+enum ExecutionState {
+  queued,
+  starting,
+  running,
+  completing,
+  completed,
+  cancelled,
+  error,
+}
+
+extension ExecutionStateExtension on ExecutionState {
+  String get value {
+    switch (this) {
+      case ExecutionState.queued:
+        return 'queued';
+      case ExecutionState.starting:
+        return 'starting';
+      case ExecutionState.running:
+        return 'running';
+      case ExecutionState.completing:
+        return 'completing';
+      case ExecutionState.completed:
+        return 'completed';
+      case ExecutionState.cancelled:
+        return 'cancelled';
+      case ExecutionState.error:
+        return 'error';
+    }
+  }
+
+  static ExecutionState fromString(String value) {
+    switch (value.toLowerCase()) {
+      case 'queued':
+        return ExecutionState.queued;
+      case 'starting':
+        return ExecutionState.starting;
+      case 'running':
+        return ExecutionState.running;
+      case 'completing':
+        return ExecutionState.completing;
+      case 'completed':
+        return ExecutionState.completed;
+      case 'cancelled':
+        return ExecutionState.cancelled;
+      case 'error':
+        return ExecutionState.error;
+      default:
+        return ExecutionState.error;
+    }
+  }
+}
+
+enum ProgressEventType {
+  started,
+  progress,
+  tickerCompleted,
+  stageCompleted,
+  completed,
+  error,
+  cancelled,
+}
+
+extension ProgressEventTypeExtension on ProgressEventType {
+  String get value {
+    switch (this) {
+      case ProgressEventType.started:
+        return 'started';
+      case ProgressEventType.progress:
+        return 'progress';
+      case ProgressEventType.tickerCompleted:
+        return 'ticker_completed';
+      case ProgressEventType.stageCompleted:
+        return 'stage_completed';
+      case ProgressEventType.completed:
+        return 'completed';
+      case ProgressEventType.error:
+        return 'error';
+      case ProgressEventType.cancelled:
+        return 'cancelled';
+    }
+  }
+
+  static ProgressEventType fromString(String value) {
+    switch (value.toLowerCase()) {
+      case 'started':
+        return ProgressEventType.started;
+      case 'progress':
+        return ProgressEventType.progress;
+      case 'ticker_completed':
+        return ProgressEventType.tickerCompleted;
+      case 'stage_completed':
+        return ProgressEventType.stageCompleted;
+      case 'completed':
+        return ProgressEventType.completed;
+      case 'error':
+        return ProgressEventType.error;
+      case 'cancelled':
+        return ProgressEventType.cancelled;
+      default:
+        return ProgressEventType.error;
+    }
+  }
+}
+
+class ExecutionOptions {
+  final String priority;
+  final bool notifyOnCompletion;
+  final int? maxExecutionTime;
+
+  ExecutionOptions({
+    this.priority = 'normal',
+    this.notifyOnCompletion = false,
+    this.maxExecutionTime,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'priority': priority,
+      'notify_on_completion': notifyOnCompletion,
+      if (maxExecutionTime != null) 'max_execution_time': maxExecutionTime,
+    };
+  }
+
+  factory ExecutionOptions.fromJson(Map<String, dynamic> json) {
+    return ExecutionOptions(
+      priority: json['priority'] as String? ?? 'normal',
+      notifyOnCompletion: json['notify_on_completion'] as bool? ?? false,
+      maxExecutionTime: json['max_execution_time'] as int?,
+    );
+  }
+}
+
+class StrategyExecutionRequest {
+  final String strategyCode;
+  final Map<String, dynamic> parameters;
+  final ExecutionOptions? options;
+
+  StrategyExecutionRequest({
+    required this.strategyCode,
+    required this.parameters,
+    this.options,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'strategy_code': strategyCode,
+      'parameters': parameters,
+      if (options != null) 'options': options!.toJson(),
+    };
+  }
+
+  factory StrategyExecutionRequest.fromJson(Map<String, dynamic> json) {
+    return StrategyExecutionRequest(
+      strategyCode: json['strategy_code'] as String,
+      parameters: json['parameters'] as Map<String, dynamic>,
+      options: json['options'] != null
+          ? ExecutionOptions.fromJson(json['options'])
+          : null,
+    );
+  }
+}
+
+class StrategyExecutionResponse {
+  final String runId;
+  final ExecutionState status;
+  final String message;
+  final String strategyCode;
+  final int totalTickers;
+  final String executionStartedAt;
+
+  StrategyExecutionResponse({
+    required this.runId,
+    required this.status,
+    required this.message,
+    required this.strategyCode,
+    required this.totalTickers,
+    required this.executionStartedAt,
+  });
+
+  factory StrategyExecutionResponse.fromJson(Map<String, dynamic> json) {
+    return StrategyExecutionResponse(
+      runId: json['run_id'] as String,
+      status: ExecutionStateExtension.fromString(json['status'] as String),
+      message: json['message'] as String,
+      strategyCode: json['strategy_code'] as String,
+      totalTickers: json['total_tickers'] as int,
+      executionStartedAt: json['execution_started_at'] as String,
+    );
+  }
+}
+
+class ProgressEvent {
+  final ProgressEventType eventType;
+  final DateTime timestamp;
+  final String runId;
+  final String? stage;
+  final double? progressPercent;
+  final String? currentItem;
+  final int? totalItems;
+  final int? completedItems;
+  final String message;
+  final Map<String, dynamic>? metrics;
+
+  ProgressEvent({
+    required this.eventType,
+    required this.timestamp,
+    required this.runId,
+    this.stage,
+    this.progressPercent,
+    this.currentItem,
+    this.totalItems,
+    this.completedItems,
+    required this.message,
+    this.metrics,
+  });
+
+  factory ProgressEvent.fromJson(Map<String, dynamic> json) {
+    return ProgressEvent(
+      eventType: ProgressEventTypeExtension.fromString(json['event_type'] as String),
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      runId: json['run_id'] as String,
+      stage: json['stage'] as String?,
+      progressPercent: (json['progress_percent'] as num?)?.toDouble(),
+      currentItem: json['current_item'] as String?,
+      totalItems: json['total_items'] as int?,
+      completedItems: json['completed_items'] as int?,
+      message: json['message'] as String,
+      metrics: json['metrics'] as Map<String, dynamic>?,
+    );
+  }
+}
+
+class ExecutionStatus {
+  final String runId;
+  final ExecutionState status;
+  final double? progressPercent;
+  final String? currentStage;
+  final String? startedAt;
+  final String? estimatedCompletion;
+  final bool canCancel;
+  final Map<String, dynamic>? metrics;
+
+  ExecutionStatus({
+    required this.runId,
+    required this.status,
+    this.progressPercent,
+    this.currentStage,
+    this.startedAt,
+    this.estimatedCompletion,
+    required this.canCancel,
+    this.metrics,
+  });
+
+  factory ExecutionStatus.fromJson(Map<String, dynamic> json) {
+    return ExecutionStatus(
+      runId: json['run_id'] as String,
+      status: ExecutionStateExtension.fromString(json['status'] as String),
+      progressPercent: (json['progress_percent'] as num?)?.toDouble(),
+      currentStage: json['current_stage'] as String?,
+      startedAt: json['started_at'] as String?,
+      estimatedCompletion: json['estimated_completion'] as String?,
+      canCancel: json['can_cancel'] as bool? ?? false,
+      metrics: json['metrics'] as Map<String, dynamic>?,
+    );
+  }
+}
+
+class ExecutionCancelResponse {
+  final bool cancelled;
+  final String message;
+
+  ExecutionCancelResponse({
+    required this.cancelled,
+    required this.message,
+  });
+
+  factory ExecutionCancelResponse.fromJson(Map<String, dynamic> json) {
+    return ExecutionCancelResponse(
+      cancelled: json['cancelled'] as bool,
+      message: json['message'] as String,
+    );
+  }
+}
+
+class QueuedExecution {
+  final String runId;
+  final String strategyCode;
+  final ExecutionState status;
+  final int position;
+  final String? startedAt;
+  final String? estimatedStart;
+
+  QueuedExecution({
+    required this.runId,
+    required this.strategyCode,
+    required this.status,
+    required this.position,
+    this.startedAt,
+    this.estimatedStart,
+  });
+
+  factory QueuedExecution.fromJson(Map<String, dynamic> json) {
+    return QueuedExecution(
+      runId: json['run_id'] as String,
+      strategyCode: json['strategy_code'] as String,
+      status: ExecutionStateExtension.fromString(json['status'] as String),
+      position: json['position'] as int,
+      startedAt: json['started_at'] as String?,
+      estimatedStart: json['estimated_start'] as String?,
+    );
+  }
+}
+
+class ExecutionQueueResponse {
+  final List<QueuedExecution> queue;
+  final int totalQueued;
+  final int maxConcurrent;
+
+  ExecutionQueueResponse({
+    required this.queue,
+    required this.totalQueued,
+    required this.maxConcurrent,
+  });
+
+  factory ExecutionQueueResponse.fromJson(Map<String, dynamic> json) {
+    final queueRaw = json['queue'];
+    return ExecutionQueueResponse(
+      queue: queueRaw is List
+          ? queueRaw.map((q) => QueuedExecution.fromJson(q)).toList()
+          : <QueuedExecution>[],
+      totalQueued: json['total_queued'] as int? ?? 0,
+      maxConcurrent: json['max_concurrent'] as int? ?? 1,
+    );
+  }
+}

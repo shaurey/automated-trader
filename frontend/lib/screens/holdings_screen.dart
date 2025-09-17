@@ -89,7 +89,7 @@ class HoldingsScreen extends ConsumerWidget {
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    value: sortMode,
+                    initialValue: sortMode,
                     items: SortMode.values.map((mode) {
                       return DropdownMenuItem(
                         value: mode,
@@ -115,7 +115,7 @@ class HoldingsScreen extends ConsumerWidget {
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    value: selectedAccount,
+                    initialValue: selectedAccount,
                     items: accountsAsync.when<List<DropdownMenuItem<String?>>>(
                       data: (accounts) {
                         final items = <DropdownMenuItem<String?>>[
@@ -156,7 +156,7 @@ class HoldingsScreen extends ConsumerWidget {
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    value: selectedStyle,
+                    initialValue: selectedStyle,
                     items: [
                       const DropdownMenuItem<String?>(
                         value: null,

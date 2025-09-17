@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../models/holdings.dart';
 import '../models/strategies.dart';
@@ -324,11 +325,136 @@ class ApiService {
     }
   }
 
+  // Strategy Execution endpoints
+  static Future<StrategyExecutionResponse> executeStrategy(
+    StrategyExecutionRequest request,
+  ) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/api/strategies/execute'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(request.toJson()),
+          )
+          .timeout(timeout);
+
+     if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return StrategyExecutionResponse.fromJson(jsonData);
+      } else {
+        throw ApiException(
+          'Failed to execute strategy: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<ExecutionStatus> getExecutionStatus(String runId) async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('$baseUrl/api/strategies/status/$runId'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return ExecutionStatus.fromJson(jsonData);
+      } else {
+        throw ApiException(
+          'Failed to get execution status: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<Map<String, dynamic>> getStrategyExecutionResults(String runId) async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('$baseUrl/api/strategies/results/$runId'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return jsonData;
+      } else {
+        throw ApiException(
+          'Failed to get execution results: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<ExecutionCancelResponse> cancelExecution(String runId) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/api/strategies/cancel/$runId'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return ExecutionCancelResponse.fromJson(jsonData);
+      } else {
+        throw ApiException(
+          'Failed to cancel execution: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<ExecutionQueueResponse> getExecutionQueue() async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('$baseUrl/api/strategies/queue'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return ExecutionQueueResponse.fromJson(jsonData);
+      } else {
+        throw ApiException(
+          'Failed to get execution queue: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
   // Dispose method to close the client
   static void dispose() {
     _client.close();
   }
 }
+
 
 class ApiException implements Exception {
   final String message;

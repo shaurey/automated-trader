@@ -342,7 +342,7 @@ class ChartsScreen extends ConsumerWidget {
                         const SizedBox(height: 4),
                         LinearProgressIndicator(
                           value: sector.weight / 100,
-                          backgroundColor: theme.colorScheme.surfaceVariant,
+                          backgroundColor: theme.colorScheme.surfaceContainerHighest,
                           valueColor: AlwaysStoppedAnimation<Color>(
                             theme.colorScheme.primary,
                           ),

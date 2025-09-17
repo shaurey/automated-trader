@@ -145,7 +145,8 @@ async def get_strategy_runs(
         if runs:
             unique_strategies = len(set(run.strategy_code for run in runs))
             total_runs = len(runs)
-            avg_pass_rate = sum(run.pass_rate for run in runs if run.pass_rate) / len([r for r in runs if r.pass_rate]) if runs else 0
+            pass_rates = [run.pass_rate for run in runs if run.pass_rate is not None]
+            avg_pass_rate = sum(pass_rates) / len(pass_rates) if pass_rates else 0
             last_run = max(run.started_at for run in runs) if runs else None
             
             strategy_stats = {
@@ -158,7 +159,7 @@ async def get_strategy_runs(
         return StrategyRunsResponse(
             runs=runs,
             total_count=total_count,
-            page=(offset // limit) + 1,
+            page=(offset // limit) + 1 if limit > 0 else 1,
             page_size=limit,
             strategy_stats=strategy_stats
         )
@@ -435,10 +436,12 @@ async def get_strategy_run_results(
             results.append(result)
         
         # Calculate summary statistics
+        # Calculate summary statistics with safe division
+        results_with_scores = [r for r in results if r.score is not None]
         summary = {
-            "avg_score": round(sum(r.score for r in results if r.score) / len([r for r in results if r.score]), 2) if results else 0,
-            "max_score": max(r.score for r in results if r.score) if results else 0,
-            "min_score": min(r.score for r in results if r.score) if results else 0,
+            "avg_score": round(sum(r.score for r in results_with_scores) / len(results_with_scores), 2) if results_with_scores else 0,
+            "max_score": max(r.score for r in results_with_scores) if results_with_scores else 0,
+            "min_score": min(r.score for r in results_with_scores) if results_with_scores else 0,
             "pass_rate": _calculate_pass_rate(passed_count, total_count)
         }
         

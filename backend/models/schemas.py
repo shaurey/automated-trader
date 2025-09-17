@@ -393,3 +393,103 @@ class StrategyResultsQueryParams(BaseModel):
     offset: int = Field(0, ge=0, description="Number of results to skip for pagination")
     order_by: str = Field("score", description="Sort field (score, ticker, created_at)")
     order_desc: bool = Field(True, description="Sort in descending order")
+
+
+# Strategy Execution Models for Real-Time Progress Tracking
+
+from enum import Enum
+from typing import Union, AsyncGenerator
+
+
+class ExecutionState(str, Enum):
+    """Execution state enumeration."""
+    QUEUED = "queued"
+    STARTING = "starting"
+    RUNNING = "running"
+    COMPLETING = "completing"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    ERROR = "error"
+
+
+class ProgressEventType(str, Enum):
+    """Progress event type enumeration."""
+    STARTED = "started"
+    PROGRESS = "progress"
+    TICKER_COMPLETED = "ticker_completed"
+    STAGE_COMPLETED = "stage_completed"
+    COMPLETED = "completed"
+    ERROR = "error"
+    CANCELLED = "cancelled"
+
+
+class ExecutionOptions(BaseModel):
+    """Options for strategy execution."""
+    priority: str = Field(default="normal", description="Execution priority: low, normal, high")
+    notify_on_completion: bool = Field(default=False, description="Send notification when execution completes")
+    max_execution_time: Optional[int] = Field(default=None, description="Maximum execution time in seconds")
+
+
+class StrategyExecutionRequest(BaseModel):
+    """Request schema for strategy execution."""
+    strategy_code: str = Field(description="Strategy code to execute (e.g., 'bullish_breakout', 'leap_entry')")
+    parameters: Dict[str, Any] = Field(description="Strategy-specific parameters")
+    options: Optional[ExecutionOptions] = Field(default=None, description="Execution options")
+
+
+class StrategyExecutionResponse(BaseModel):
+    """Response schema for strategy execution start."""
+    run_id: str = Field(description="Unique run identifier")
+    status: ExecutionState = Field(description="Current execution status")
+    position_in_queue: Optional[int] = Field(default=None, description="Position in execution queue (if queued)")
+    estimated_start_time: Optional[str] = Field(default=None, description="Estimated start time (ISO format)")
+    sse_endpoint: str = Field(description="SSE endpoint for real-time progress")
+
+
+class ProgressEvent(BaseModel):
+    """Progress event schema for SSE streaming."""
+    event_type: ProgressEventType = Field(description="Type of progress event")
+    timestamp: datetime = Field(description="Event timestamp")
+    run_id: str = Field(description="Run identifier")
+    stage: Optional[str] = Field(default=None, description="Current execution stage")
+    progress_percent: Optional[float] = Field(default=None, description="Progress percentage (0-100)")
+    current_item: Optional[str] = Field(default=None, description="Current item being processed")
+    total_items: Optional[int] = Field(default=None, description="Total number of items to process")
+    completed_items: Optional[int] = Field(default=None, description="Number of completed items")
+    message: str = Field(description="Human-readable progress message")
+    metrics: Optional[Dict[str, Any]] = Field(default=None, description="Additional progress metrics")
+
+
+class ExecutionStatus(BaseModel):
+    """Current execution status for polling endpoint."""
+    run_id: str = Field(description="Run identifier")
+    status: ExecutionState = Field(description="Current execution status")
+    progress_percent: Optional[float] = Field(default=None, description="Overall progress percentage")
+    current_stage: Optional[str] = Field(default=None, description="Current execution stage")
+    started_at: Optional[str] = Field(default=None, description="Execution start time (ISO format)")
+    estimated_completion: Optional[str] = Field(default=None, description="Estimated completion time (ISO format)")
+    can_cancel: bool = Field(default=False, description="Whether execution can be cancelled")
+    metrics: Optional[Dict[str, Any]] = Field(default=None, description="Current execution metrics")
+
+
+class ExecutionCancelResponse(BaseModel):
+    """Response schema for execution cancellation."""
+    cancelled: bool = Field(description="Whether cancellation was successful")
+    message: str = Field(description="Cancellation result message")
+
+
+class QueuedExecution(BaseModel):
+    """Individual queued execution item."""
+    run_id: str = Field(description="Run identifier")
+    strategy_code: str = Field(description="Strategy code")
+    status: ExecutionState = Field(description="Current status")
+    position: int = Field(description="Position in queue (0-based)")
+    started_at: Optional[str] = Field(default=None, description="Start time if running")
+    estimated_start: Optional[str] = Field(default=None, description="Estimated start time if queued")
+
+
+class ExecutionQueueResponse(BaseModel):
+    """Response schema for execution queue."""
+    queue: List[QueuedExecution] = Field(description="List of queued and running executions")
+    total_queued: int = Field(description="Total number of queued executions")
+    max_concurrent: int = Field(description="Maximum concurrent executions allowed")

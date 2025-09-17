@@ -56,6 +56,17 @@ from db import Database  # new import
 import sqlite3
 import time as _time  # for DB retry backoff
 
+# Import ProgressReporter for real-time progress tracking
+try:
+    from backend.services.progress_reporter import ProgressReporter
+except ImportError:
+    # Fallback for when running standalone without backend
+    class ProgressReporter:
+        def __init__(self): pass
+        def report_progress(self, *args, **kwargs): pass
+        def report_ticker_progress(self, *args, **kwargs): pass
+        def report_error(self, *args, **kwargs): pass
+
 # ------------------------------- Data Classes -------------------------------
 
 @dataclass
@@ -403,17 +414,25 @@ def _write_text(results: List[LeapResult], path: str):
             return
         for r in sorted(passed, key=lambda x: x.score, reverse=True):
             m = r.metrics
-            f.write(f"{r.ticker}  Score:{r.score}  Class:{m.get('classification')}  Close:{fmt(m.get('close'),2,'$')}  RSI:{fmt(m.get('rsi14'),2)}\n")
             f.write(
-                f"  Dist: 50={fmt(m.get('dist_50_pct'))}%  200={fmt(m.get('dist_200_pct'))}%  Confluence:{m.get('confluence')}  RS_OK:{m.get('rs_ok')}\n"
+                f"{r.ticker}  Score:{r.score}  Class:{m.get('classification')}  Close:{fmt(m.get('close'),2,'$')}  "
+                f"RSI:{fmt(m.get('rsi14'),2)}  RSI_Turn:{m.get('rsi_turn')}  ValueZone:{m.get('value_zone')}  Near200:{m.get('near_200')}\n"
             )
             f.write(
-                f"  Acc:{m.get('acc_days')}  VolBal:{m.get('vol_balance_ok')}  VolContract:{m.get('vol_contract')}  ATR%:{fmt(m.get('atr_pct'))}\n"
+                f"  MAs: SMA50:{fmt(m.get('sma50'),2,'$')}  SMA150:{fmt(m.get('sma150'),2,'$')}  SMA200:{fmt(m.get('sma200'),2,'$')}  Slope200:{m.get('slope_200')}\n"
             )
             f.write(
-                f"  AVWAP:{fmt(m.get('anchored_vwap'),2,'$')}  dist={fmt(m.get('avwap_distance_pct'))}%  anchor={m.get('anchor_date')}  AVWAPpts:{m.get('avwap_points')}\n"
+                f"  Dist%: 50={fmt(m.get('dist_50_pct'))}%  200={fmt(m.get('dist_200_pct'))}%  Confluence:{m.get('confluence')}  RS_OK:{m.get('rs_ok')}  Divergence:{m.get('divergence')}\n"
             )
-            f.write(f"  Stop:{fmt(m.get('suggested_stop'),2,'$')}  Divergence:{m.get('divergence')}\n\n")
+            f.write(
+                f"  Acc:{m.get('acc_days')}  VolBal:{m.get('vol_balance_ok')}  VolContract:{m.get('vol_contract')}  ATR:{fmt(m.get('atr14'),4)}  ATR%:{fmt(m.get('atr_pct'))}\n"
+            )
+            f.write(
+                f"  AVWAP:{fmt(m.get('anchored_vwap'),2,'$')}  Dist:{fmt(m.get('avwap_distance_pct'))}%  Anchor:{m.get('anchor_date')}  AVWAPpts:{m.get('avwap_points')}\n"
+            )
+            f.write(
+                f"  Stop:{fmt(m.get('suggested_stop'),2,'$')}  ScoreComponents: value_zone={m.get('value_zone')} rsi_turn={m.get('rsi_turn')} avwap_pts={m.get('avwap_points')}\n\n"
+            )
 
 def _write_csv(pd, results: List[LeapResult], path: str):
     if not results:
@@ -445,15 +464,73 @@ def _write_csv(pd, results: List[LeapResult], path: str):
 
 def run_leap_screener(tickers: Iterable[str], cfg: Optional[LeapConfig] = None) -> List[LeapResult]:
     cfg = cfg or LeapConfig()
+    
+    # Initialize progress reporter
+    progress_reporter = ProgressReporter()
+    
     tickers = list(dict.fromkeys([t.strip().upper() for t in tickers if t and t.strip()]))
     if not tickers:
         return []
+    
+    progress_reporter.report_progress("setup", "Starting LEAP entry screener", {"total_tickers": len(tickers)})
+    
     from concurrent.futures import ThreadPoolExecutor
     results: List[LeapResult] = []
     max_workers = max(1, min(cfg.max_workers, len(tickers)))
+    
+    # Track progress during ticker evaluation
+    processed_count = 0
+    passed_count = 0
+    
+    def evaluate_with_progress(ticker: str) -> LeapResult:
+        nonlocal processed_count, passed_count
+        result = _evaluate_ticker(ticker, cfg)
+        processed_count += 1
+        if result.passed:
+            passed_count += 1
+            
+        # Report progress for each ticker
+        progress_reporter.report_ticker_progress(
+            ticker,
+            result.passed,
+            result.score,
+            f"Score: {result.score}/100, Classification: {result.classification}"
+        )
+        
+        # Report overall progress every 10 tickers or on completion
+        if processed_count % 10 == 0 or processed_count == len(tickers):
+            progress_pct = (processed_count / len(tickers)) * 100
+            progress_reporter.report_progress(
+                "evaluation",
+                f"Evaluated {processed_count}/{len(tickers)} tickers",
+                {
+                    "processed": processed_count,
+                    "total": len(tickers),
+                    "progress_pct": round(progress_pct, 1),
+                    "passed_so_far": passed_count
+                }
+            )
+        
+        return result
+    
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        for res in ex.map(lambda sym: _evaluate_ticker(sym, cfg), tickers):
+        for res in ex.map(evaluate_with_progress, tickers):
             results.append(res)
+    
+    # Report final results
+    passed_results = [r for r in results if r.passed]
+    progress_reporter.report_progress(
+        "analysis_complete",
+        f"LEAP analysis complete: {len(passed_results)} candidates found",
+        {
+            "total_evaluated": len(results),
+            "passed": len(passed_results),
+            "failed": len(results) - len(passed_results),
+            "pass_rate_pct": round((len(passed_results) / len(results)) * 100, 1) if results else 0,
+            "top_candidates": [{"ticker": r.ticker, "score": r.score, "classification": r.classification} for r in sorted(passed_results, key=lambda x: x.score, reverse=True)[:5]]
+        }
+    )
+    
     # Optionally lookup names (can be added later similar to bullish strategy)
     return results
 

@@ -30,6 +30,25 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from db import Database  # new import
 import sqlite3
 
+# Import ProgressReporter for real-time progress tracking
+try:
+    from backend.services.progress_reporter import ProgressReporter
+except ImportError:
+    # Fallback for when running standalone without backend
+    class ProgressReporter:
+        def __init__(self): pass
+        def report_progress(self, *args, **kwargs): pass
+        def report_ticker_progress(self, *args, **kwargs): pass
+        def report_error(self, *args, **kwargs): pass
+
+# Import the new service-based implementation
+try:
+    from backend.services.bullish_breakout_service import BullishBreakoutService
+    from backend.services.base_strategy_service import ProgressCallback
+    _SERVICE_AVAILABLE = True
+except ImportError:
+    _SERVICE_AVAILABLE = False
+
 
 @dataclass
 class ScreenerConfig:
@@ -539,18 +558,60 @@ def run_screener(tickers: List[str], cfg: ScreenerConfig, db_path: Optional[str]
     """
     from concurrent.futures import ThreadPoolExecutor
 
+    # Initialize progress reporter
+    progress_reporter = ProgressReporter()
+    
     tickers = list(dict.fromkeys([t.strip().upper() for t in tickers if t and t.strip()]))
     if not tickers:
         return [], []
 
+    progress_reporter.report_progress("setup", "Starting bullish breakout screener", {"total_tickers": len(tickers)})
+
     results: List[TickerResult] = []
     max_workers = max(1, min(cfg.max_workers, len(tickers)))
+    
+    # Track progress during ticker evaluation
+    processed_count = 0
+    passed_count = 0
+    
+    def evaluate_with_progress(ticker: str) -> TickerResult:
+        nonlocal processed_count, passed_count
+        result = _evaluate_ticker(ticker, cfg)
+        processed_count += 1
+        if result.passed:
+            passed_count += 1
+            
+        # Report progress for each ticker
+        progress_reporter.report_ticker_progress(
+            ticker,
+            result.passed,
+            result.metrics.get("score", 0),
+            f"Score: {result.metrics.get('score', 0)}/100, Recommendation: {result.metrics.get('recommendation', 'N/A')}"
+        )
+        
+        # Report overall progress every 10 tickers or on completion
+        if processed_count % 10 == 0 or processed_count == len(tickers):
+            progress_pct = (processed_count / len(tickers)) * 100
+            progress_reporter.report_progress(
+                "evaluation",
+                f"Evaluated {processed_count}/{len(tickers)} tickers",
+                {
+                    "processed": processed_count,
+                    "total": len(tickers),
+                    "progress_pct": round(progress_pct, 1),
+                    "passed_so_far": passed_count
+                }
+            )
+        
+        return result
+
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        for res in ex.map(lambda sym: _evaluate_ticker(sym, cfg), tickers):
+        for res in ex.map(evaluate_with_progress, tickers):
             results.append(res)
 
     # Enrich names for qualifiers if requested
     if results and cfg.lookup_names:
+        progress_reporter.report_progress("enrichment", "Looking up company names for qualifying stocks", {"count": len([r for r in results if r.passed])})
         try:
             pd, _, yf = _lazy_imports()
             for r in results:
@@ -573,6 +634,19 @@ def run_screener(tickers: List[str], cfg: ScreenerConfig, db_path: Optional[str]
 
     passed = sorted([r for r in results if r.passed], key=lambda r: r.metrics.get("score", 0), reverse=True)
     failed = [r for r in results if not r.passed]
+
+    # Report final results
+    progress_reporter.report_progress(
+        "analysis_complete",
+        f"Analysis complete: {len(passed)} qualifying stocks found",
+        {
+            "total_evaluated": len(results),
+            "passed": len(passed),
+            "failed": len(failed),
+            "pass_rate_pct": round((len(passed) / len(results)) * 100, 1) if results else 0,
+            "top_scores": [{"ticker": r.ticker, "score": r.metrics.get("score", 0)} for r in passed[:5]]
+        }
+    )
 
     # Optional DB logging
     if db_path:
@@ -617,6 +691,50 @@ def run_screener(tickers: List[str], cfg: ScreenerConfig, db_path: Optional[str]
             print(f"[DB] run logging disabled: {e}")
 
     return passed, failed
+
+
+def run_as_service(tickers: List[str], parameters: Dict[str, Any], progress_callback: Optional[Callable] = None):
+    """
+    Service interface for bullish breakout strategy.
+    
+    This function provides a clean interface for running the strategy as a service
+    rather than a CLI script. It uses the new service implementation if available,
+    otherwise falls back to the legacy implementation.
+    
+    Args:
+        tickers: List of ticker symbols to evaluate
+        parameters: Strategy parameters
+        progress_callback: Optional callback function for progress reporting
+        
+    Returns:
+        StrategyExecutionSummary if service implementation available,
+        otherwise tuple of (passed, failed) results
+    """
+    if _SERVICE_AVAILABLE and progress_callback:
+        # Use new service-based implementation
+        service = BullishBreakoutService()
+        
+        # Convert legacy progress reporter to new callback format
+        callback = ProgressCallback(progress_callback)
+        
+        # Execute using service
+        return service.execute(tickers, parameters, callback)
+    else:
+        # Fall back to legacy implementation
+        cfg = ScreenerConfig(
+            period=parameters.get("period", "2y"),
+            interval=parameters.get("interval", "1d"),
+            min_volume_multiple=parameters.get("min_volume_multiple", 1.0),
+            strict_macd_positive=parameters.get("strict_macd_positive", False),
+            allow_overbought=parameters.get("allow_overbought", False),
+            require_52w_high=parameters.get("require_52w_high", False),
+            max_workers=parameters.get("max_workers", 4),
+            min_score=parameters.get("min_score", 70),
+            lookup_names=parameters.get("lookup_names", True)
+        )
+        
+        # Run legacy screener
+        return run_screener(tickers, cfg)
 
 
 def main(argv: Optional[List[str]] = None) -> int:

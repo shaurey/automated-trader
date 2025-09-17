@@ -17,6 +17,8 @@ from .api.holdings import router as holdings_router
 from .api.instruments import router as instruments_router
 from .api.health import router as health_router
 from .api.strategies import router as strategies_router
+# Import working simplified router (renamed for clarity)
+from .api.strategy_execution_simplified import router as strategy_execution_simplified_router
 
 
 # Configure logging
@@ -41,6 +43,18 @@ async def lifespan(app: FastAPI):
     # Verify database exists
     if not os.path.exists(DB_PATH):
         logger.warning(f"Database file not found at {DB_PATH}")
+    
+    # Initialize simplified execution database tables (lightweight check only)
+    try:
+        from .database.connection import get_db_connection, verify_database_schema
+        db = get_db_connection()
+        if verify_database_schema(db):
+            logger.info("Simplified execution database schema verified")
+        else:
+            logger.warning("Simplified execution database schema incomplete - will initialize on first use")
+        db.close()  # Close the setup connection
+    except Exception as e:
+        logger.warning(f"Database verification during startup failed: {e} - continuing without verification")
     
     yield
     
@@ -109,6 +123,9 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix="/api", tags=["health"])
     app.include_router(holdings_router, prefix="/api", tags=["holdings"])
     app.include_router(instruments_router, prefix="/api", tags=["instruments"])
+    # Use the working simplified router with /api prefix - register before strategies_router
+    # to ensure /strategies/queue endpoint is matched before general /strategies endpoints
+    app.include_router(strategy_execution_simplified_router, prefix="/api", tags=["strategy-execution"])
     app.include_router(strategies_router, prefix="/api", tags=["strategies"])
     
     return app
