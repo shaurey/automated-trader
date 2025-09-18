@@ -16,6 +16,10 @@ dependencies:
   intl: ^0.18.1
   shared_preferences: ^2.2.2
   web_socket_channel: ^2.4.0
+  flutter_markdown: ^0.6.18
+  universal_html: ^2.2.4
+  path_provider: ^2.1.1
+  permission_handler: ^11.0.1
 
 dev_dependencies:
   flutter_test:

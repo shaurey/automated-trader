@@ -238,7 +238,7 @@ async def get_strategy_run_detail(run_id: str):
             range_rows = db_manager.execute_query(range_query, [run_id])
             score_ranges = {row[0]: row[1] for row in range_rows}
         
-        # Get top results preview (top 5 by score)
+        # Get top results preview (all passing results, properly sorted)
         top_results_query = """
         SELECT res.run_id, res.strategy_code, res.ticker, res.passed, res.score,
                res.classification, res.reasons, res.metrics_json, res.created_at,
@@ -246,8 +246,7 @@ async def get_strategy_run_detail(run_id: str):
         FROM strategy_result res
         LEFT JOIN instruments inst ON res.ticker = inst.ticker
         WHERE res.run_id = ? AND res.passed = 1
-        ORDER BY res.score DESC
-        LIMIT 5
+        ORDER BY res.score DESC, res.ticker ASC
         """
         
         top_rows = db_manager.execute_query(top_results_query, [run_id])
@@ -401,7 +400,7 @@ async def get_strategy_run_results(
         FROM strategy_result res
         LEFT JOIN instruments inst ON res.ticker = inst.ticker
         {where_clause}
-        ORDER BY res.{order_by} {order_direction}
+        ORDER BY res.{order_by} {order_direction}, res.ticker ASC
         """
         
         # Only add LIMIT/OFFSET if limit is specified

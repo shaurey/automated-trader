@@ -13,7 +13,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel, Field, root_validator
 
-from ..services.strategy_execution_service import get_strategy_execution_service
+from ..services.strategy_execution_service import get_strategy_execution_service, reset_strategy_execution_service
 from ..database.connection import get_db_connection
 
 logger = logging.getLogger(__name__)
@@ -263,6 +263,8 @@ async def list_available_strategies(db=Depends(get_db)):
     that can be executed through the simplified execution system.
     """
     try:
+        # Force reset of global service instance to pick up new registrations
+        reset_strategy_execution_service()
         execution_service = get_strategy_execution_service(db)
         strategies = execution_service.list_available_strategies()
         

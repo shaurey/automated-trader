@@ -1,0 +1,213 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/strategies.dart';
+import 'api_service.dart';
+
+class ReportService {
+  static const String baseUrl = 'http://localhost:8000';
+  static const Duration timeout = Duration(seconds: 30);
+  
+  static final http.Client _client = http.Client();
+
+  /// Generate a markdown report for a strategy execution
+  static Future<String> generateReport(String runId) async {
+    try {
+      // First, get the strategy run details
+      final runDetail = await ApiService.getStrategyRunDetail(runId);
+      
+      // Get ALL actionable results for the report (passed = true)
+      final resultsResponse = await ApiService.getStrategyRunResults(
+        runId,
+        passed: true, // Only get actionable results (buy signals and trim/exit signals)
+        // No limit specified - this will return ALL actionable results
+        orderBy: 'score',
+        orderDesc: true,
+      );
+
+      // Generate the markdown report
+      return _generateMarkdownReport(runDetail, resultsResponse);
+    } catch (e) {
+      throw Exception('Failed to generate report: $e');
+    }
+  }
+
+  /// Generate a markdown report from strategy data
+  static String _generateMarkdownReport(
+    StrategyRunDetail runDetail,
+    StrategyResultsResponse resultsResponse,
+  ) {
+    final buffer = StringBuffer();
+    
+    // Title and header
+    buffer.writeln('# Strategy Execution Report');
+    buffer.writeln('');
+    buffer.writeln('**Strategy:** ${_formatStrategyName(runDetail.strategyCode)}');
+    buffer.writeln('**Generated:** ${DateTime.now().toLocal().toString().substring(0, 19)}');
+    buffer.writeln('');
+
+    // Executive Summary
+    buffer.writeln('## Executive Summary');
+    buffer.writeln('');
+    
+    if (runDetail.completedAt != null) {
+      final startTime = DateTime.parse(runDetail.startedAt);
+      final endTime = DateTime.parse(runDetail.completedAt!);
+      final duration = endTime.difference(startTime);
+      buffer.writeln('**Execution Time:** ${_formatDuration(duration)}');
+    }
+    
+    buffer.writeln('**Universe Size:** ${runDetail.universeSize ?? 'N/A'}');
+    buffer.writeln('**Total Results:** ${runDetail.totalResults ?? 0}');
+    buffer.writeln('**Passed Count:** ${runDetail.passedCount ?? 0}');
+    
+    if (runDetail.passRate != null) {
+      // Fix pass rate calculation to ensure it doesn't exceed 100%
+      final passRate = (runDetail.passRate! * 100).clamp(0.0, 100.0);
+      buffer.writeln('**Pass Rate:** ${passRate.toStringAsFixed(1)}%');
+    }
+    
+    if (runDetail.avgScore != null) {
+      buffer.writeln('**Average Score:** ${runDetail.avgScore!.toStringAsFixed(2)}');
+    }
+    
+    if (runDetail.maxScore != null) {
+      buffer.writeln('**Max Score:** ${runDetail.maxScore!.toStringAsFixed(2)}');
+    }
+    
+    buffer.writeln('');
+
+    // All Actionable Results (both buy signals and trim/exit signals)
+    if (resultsResponse.results.isNotEmpty) {
+      buffer.writeln('## All Actionable Results');
+      buffer.writeln('');
+      buffer.writeln('**Total Actionable Results:** ${resultsResponse.results.length}');
+      buffer.writeln('');
+      
+      // Use ALL results, not just top 20
+      final allResults = resultsResponse.results;
+      
+      buffer.writeln('| Rank | Ticker | Score | Classification | Price | MA10 | MA50 | MA200 |');
+      buffer.writeln('|------|--------|-------|----------------|-------|------|------|-------|');
+      
+      for (int i = 0; i < allResults.length; i++) {
+        final result = allResults[i];
+        final rank = i + 1;
+        final score = result.score?.toStringAsFixed(2) ?? 'N/A';
+        final classification = _formatClassificationWithColor(result.classification);
+        final price = result.metrics.close != null ? '\$${result.metrics.close!.toStringAsFixed(2)}' : 'N/A';
+        final ma10 = result.metrics.sma10 != null ? '\$${result.metrics.sma10!.toStringAsFixed(2)}' : 'N/A';
+        final ma50 = result.metrics.sma50 != null ? '\$${result.metrics.sma50!.toStringAsFixed(2)}' : 'N/A';
+        final ma200 = result.metrics.sma200 != null ? '\$${result.metrics.sma200!.toStringAsFixed(2)}' : 'N/A';
+        
+        buffer.writeln('| $rank | **${result.ticker}** | $score | $classification | $price | $ma10 | $ma50 | $ma200 |');
+      }
+      buffer.writeln('');
+    }
+
+    // Performance Distribution (moved after Top Results)
+    if (runDetail.scoreRanges != null && runDetail.scoreRanges!.isNotEmpty) {
+      buffer.writeln('## Performance Distribution');
+      buffer.writeln('');
+      buffer.writeln('| Score Range | Count |');
+      buffer.writeln('|-------------|-------|');
+      
+      final sortedRanges = runDetail.scoreRanges!.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+      
+      for (final entry in sortedRanges) {
+        buffer.writeln('| ${entry.key} | ${entry.value} |');
+      }
+      buffer.writeln('');
+    }
+
+    // Footer
+    buffer.writeln('---');
+    buffer.writeln('*Report generated by Automated Trading System*');
+    buffer.writeln('*Strategy: ${runDetail.strategyCode}*');
+
+    return buffer.toString();
+  }
+
+  /// Format strategy name from code
+  static String _formatStrategyName(String strategyCode) {
+    return strategyCode
+        .split('_')
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+  }
+
+  /// Format duration in a human readable way
+  static String _formatDuration(Duration duration) {
+    if (duration.inHours > 0) {
+      return '${duration.inHours}h ${duration.inMinutes % 60}m';
+    } else if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
+    } else {
+      return '${duration.inSeconds}s';
+    }
+  }
+
+  /// Format classification with color coding for markdown
+  static String _formatClassificationWithColor(String? classification) {
+    if (classification == null) return 'N/A';
+    
+    // Color-code based on common classification types
+    switch (classification.toLowerCase()) {
+      case 'growth':
+        return '🟢 **Growth**';
+      case 'value':
+        return '🔵 **Value**';
+      case 'momentum':
+        return '🟡 **Momentum**';
+      case 'defensive':
+        return '🟣 **Defensive**';
+      case 'cyclical':
+        return '🟠 **Cyclical**';
+      case 'speculative':
+        return '🔴 **Speculative**';
+      case 'dividend':
+        return '💎 **Dividend**';
+      case 'small cap':
+        return '🔹 **Small Cap**';
+      case 'mid cap':
+        return '🔸 **Mid Cap**';
+      case 'large cap':
+        return '🔷 **Large Cap**';
+      default:
+        return '⚪ **$classification**';
+    }
+  }
+
+  /// Check if a report API endpoint exists (for future backend implementation)
+  static Future<bool> hasReportEndpoint() async {
+    try {
+      final response = await _client
+          .head(Uri.parse('$baseUrl/api/strategies/reports/test'))
+          .timeout(const Duration(seconds: 5));
+      return response.statusCode == 200 || response.statusCode == 404;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Generate report via backend API (if available)
+  static Future<String> generateReportViaAPI(String runId) async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('$baseUrl/api/strategies/reports/$runId'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return jsonData['markdown'] as String;
+      } else {
+        throw Exception('Failed to generate report via API: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to generate report via API: $e');
+    }
+  }
+}

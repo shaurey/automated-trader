@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../providers/strategies_provider.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/error_widget.dart';
+import '../widgets/report_viewer_dialog.dart';
 import '../models/strategies.dart';
 
 class StrategiesScreen extends ConsumerWidget {
@@ -329,6 +330,11 @@ class StrategiesScreen extends ConsumerWidget {
                           onPressed: () => _showRunResults(context, ref, run.runId),
                           tooltip: 'View Results',
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.article),
+                          onPressed: () => _showReportViewer(context, run.runId, run.strategyCode),
+                          tooltip: 'View Report',
+                        ),
                       ],
                     ),
                   ),
@@ -440,7 +446,7 @@ class StrategiesScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 TextButton.icon(
                   onPressed: () => _showRunDetails(context, ref, run.runId),
@@ -451,6 +457,11 @@ class StrategiesScreen extends ConsumerWidget {
                   onPressed: () => _showRunResults(context, ref, run.runId),
                   icon: const Icon(Icons.list),
                   label: const Text('Results'),
+                ),
+                TextButton.icon(
+                  onPressed: () => _showReportViewer(context, run.runId, run.strategyCode),
+                  icon: const Icon(Icons.article),
+                  label: const Text('Report'),
                 ),
               ],
             ),
@@ -562,6 +573,16 @@ class StrategiesScreen extends ConsumerWidget {
       ),
     );
   }
+
+  void _showReportViewer(BuildContext context, String runId, String strategyCode) {
+    showDialog(
+      context: context,
+      builder: (context) => ReportViewerDialog(
+        runId: runId,
+        strategyCode: strategyCode,
+      ),
+    );
+  }
 }
 
 class _RunDetailsDialog extends ConsumerWidget {
@@ -659,7 +680,8 @@ class _RunResultsDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final filter = StrategyResultsFilter(runId: runId, passed: true);
+    // Show ALL actionable results (both positive signals and trim/exit signals)
+    final filter = StrategyResultsFilter(runId: runId);
     final resultsAsync = ref.watch(strategyRunResultsProvider(filter));
 
     return Dialog(
@@ -703,7 +725,9 @@ class _RunResultsDialog extends ConsumerWidget {
   Widget _buildResultsContent(BuildContext context, StrategyResultsResponse resultsResponse) {
     return Column(
       children: [
-        Text('${resultsResponse.results.length} passed results (of ${resultsResponse.totalCount} total)'),
+        Text('${resultsResponse.results.length} actionable results (of ${resultsResponse.totalCount} total evaluated)'),
+        Text('Includes: Buy signals, Strong Buy signals, Trim positions, and Exit positions',
+             style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
         const SizedBox(height: 16),
         Expanded(
           child: ListView.builder(

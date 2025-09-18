@@ -58,8 +58,9 @@ class ProgressCallback:
             metadata=metadata or {}
         )
     
-    def report_ticker_progress(self, ticker: str, passed: bool, score: float, 
-                             classification: str, sequence_number: int = 0):
+    def report_ticker_progress(self, ticker: str, passed: bool, score: float,
+                             classification: str, sequence_number: int = 0,
+                             metrics: Optional[Dict[str, Any]] = None):
         """Report progress for individual ticker evaluation."""
         self.callback_func(
             stage="evaluation",
@@ -67,7 +68,8 @@ class ProgressCallback:
             passed=passed,
             score=score,
             classification=classification,
-            sequence_number=sequence_number
+            sequence_number=sequence_number,
+            metrics=metrics or {}
         )
     
     def report_overall_progress(self, processed: int, total: int, passed_so_far: int):

@@ -8,6 +8,9 @@ direct in-process strategy execution and database-centric progress tracking.
 import uuid
 import time
 import logging
+import json
+import numpy as np
+import pandas as pd
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import asdict
@@ -16,8 +19,27 @@ from .base_strategy_service import (
     BaseStrategyService, StrategyExecutionSummary, ProgressCallback, get_strategy_registry
 )
 from .bullish_breakout_service import BullishBreakoutService
+from .leap_entry_service import LeapEntryService  # Leap Entry Strategy Service
 
 logger = logging.getLogger(__name__)
+
+
+def convert_numpy_types(obj):
+    """Convert numpy types to native Python types for JSON serialization."""
+    if isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(v) for v in obj]
+    elif isinstance(obj, (np.bool_, np.bool)):
+        return bool(obj)
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif pd.isna(obj):
+        return None
+    else:
+        return obj
 
 
 class DatabaseProgressTracker:
@@ -97,9 +119,8 @@ class DatabaseProgressTracker:
             ))
             
             # Also insert into strategy_result table for API compatibility
-            import json
             reasons_str = ';'.join(reasons) if reasons else ''
-            metrics_json = json.dumps(metrics) if metrics else '{}'
+            metrics_json = json.dumps(convert_numpy_types(metrics)) if metrics else '{}'
             
             self.db.execute("""
                 INSERT OR REPLACE INTO strategy_result
@@ -194,7 +215,12 @@ class StrategyExecutionService:
             bullish_service = BullishBreakoutService()
             self.registry.register(bullish_service)
             
-            logger.info(f"Registered {len(self.registry.list_strategies())} strategy services")
+            # Register LEAP entry service
+            leap_service = LeapEntryService()
+            self.registry.register(leap_service)
+            
+            registered_strategies = self.registry.list_strategies()
+            logger.info(f"Registered {len(registered_strategies)} strategy services: {[s['code'] for s in registered_strategies]}")
             
         except Exception as e:
             logger.error(f"Failed to register strategy services: {e}")
@@ -265,6 +291,10 @@ class StrategyExecutionService:
                         sequence_number = kwargs.get('sequence_number', 0)
                         reasons = kwargs.get('reasons', [])
                         metrics = kwargs.get('metrics', {})
+                        
+                        # DEBUG: Log the exact kwargs received
+                        logger.debug(f"[METRICS_DEBUG] Progress callback for {ticker}: kwargs={kwargs}")
+                        logger.debug(f"[METRICS_DEBUG] Metrics received: {metrics}")
                         
                         # Estimate processing time (can be enhanced)
                         processing_time_ms = int((time.time() - start_time) * 1000 / max(1, sequence_number))
@@ -544,3 +574,10 @@ def get_strategy_execution_service(db_connection=None) -> StrategyExecutionServi
     if _execution_service is None:
         _execution_service = StrategyExecutionService(db_connection)
     return _execution_service
+
+
+def reset_strategy_execution_service():
+    """Force reset of global service instance to pick up new registrations."""
+    global _execution_service
+    _execution_service = None
+    logger.info("Reset global strategy execution service")

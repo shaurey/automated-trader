@@ -22,12 +22,9 @@ class BullishBreakoutConfig:
     """Configuration for bullish breakout strategy."""
     period: str = "2y"
     interval: str = "1d"
-    min_volume_multiple: float = 1.0
-    strict_macd_positive: bool = False
-    allow_overbought: bool = False
-    require_52w_high: bool = False
+    volume_threshold_multiple: float = 1.5  # 150% of 20-day average
     max_workers: int = 4
-    min_score: int = 70
+    min_score: int = 5  # Changed from 70 to 5 for 7-point system
     lookup_names: bool = True
 
 
@@ -65,13 +62,10 @@ class BullishBreakoutService(BaseStrategyService):
         """Return default parameters."""
         return {
             "period": "2y",
-            "interval": "1d", 
-            "min_volume_multiple": 1.0,
-            "strict_macd_positive": False,
-            "allow_overbought": False,
-            "require_52w_high": False,
+            "interval": "1d",
+            "volume_threshold_multiple": 1.5,
             "max_workers": 4,
-            "min_score": 70,
+            "min_score": 5,
             "lookup_names": True
         }
     
@@ -85,12 +79,9 @@ class BullishBreakoutService(BaseStrategyService):
         config = BullishBreakoutConfig(
             period=parameters.get("period", "2y"),
             interval=parameters.get("interval", "1d"),
-            min_volume_multiple=parameters.get("min_volume_multiple", 1.0),
-            strict_macd_positive=parameters.get("strict_macd_positive", False),
-            allow_overbought=parameters.get("allow_overbought", False),
-            require_52w_high=parameters.get("require_52w_high", False),
+            volume_threshold_multiple=parameters.get("volume_threshold_multiple", 1.5),
             max_workers=parameters.get("max_workers", 4),
-            min_score=parameters.get("min_score", 70),
+            min_score=parameters.get("min_score", 5),
             lookup_names=parameters.get("lookup_names", True)
         )
         
@@ -196,13 +187,19 @@ class BullishBreakoutService(BaseStrategyService):
             if result.passed:
                 passed_count += 1
             
+            # DEBUG: Log the calculated metrics with SMA values and slope
+            self.logger.debug(f"[METRICS_DEBUG] Calculated metrics for {ticker}: {result.metrics}")
+            self.logger.debug(f"[METRICS_DEBUG] SMA10: {result.metrics.get('sma10')}, SMA50: {result.metrics.get('sma50')}, SMA200: {result.metrics.get('sma200')}")
+            self.logger.debug(f"[METRICS_DEBUG] MA200 Slope Up: {result.metrics.get('ma200_slope_upward')}, Points Trend: {result.metrics.get('points_trend_direction')}")
+            
             # Report ticker progress
             progress_callback.report_ticker_progress(
                 ticker=ticker,
                 passed=result.passed,
                 score=result.metrics.get("score", 0),
                 classification=result.metrics.get("recommendation", "N/A"),
-                sequence_number=processed_count
+                sequence_number=processed_count,
+                metrics=result.metrics
             )
             
             # Report overall progress periodically
@@ -370,161 +367,210 @@ class BullishBreakoutService(BaseStrategyService):
             return False
         return prev_a <= prev_b and curr_a > curr_b
     
+    def _detect_golden_cross(self, df, lookback_days: int = 30) -> bool:
+        """
+        Detect if 50-day MA recently crossed above 200-day MA (Golden Cross).
+        
+        Args:
+            df: DataFrame with sma50 and sma200 columns
+            lookback_days: How many days back to look for the cross
+            
+        Returns:
+            True if Golden Cross occurred within lookback period
+        """
+        if len(df) < max(50, 200, lookback_days + 1):
+            return False
+            
+        # Check for the cross in the last lookback_days
+        for i in range(1, min(lookback_days + 1, len(df))):
+            prev_idx = -(i + 1)
+            curr_idx = -i
+            
+            if (prev_idx < -len(df) or curr_idx < -len(df)):
+                continue
+                
+            prev_sma50 = df["sma50"].iloc[prev_idx]
+            prev_sma200 = df["sma200"].iloc[prev_idx]
+            curr_sma50 = df["sma50"].iloc[curr_idx]
+            curr_sma200 = df["sma200"].iloc[curr_idx]
+            
+            # Check for NaN values
+            if any(map(lambda x: x != x, [prev_sma50, prev_sma200, curr_sma50, curr_sma200])):
+                continue
+                
+            # Golden Cross: 50-day was below or equal to 200-day, now above
+            if prev_sma50 <= prev_sma200 and curr_sma50 > curr_sma200:
+                return True
+                
+        return False
+    
+    def _detect_ma200_slope_upward(self, df, pd, lookback_days: int = 10) -> bool:
+        """
+        Detect if 200-day MA is trending upward by comparing current to 10 days ago.
+        
+        Args:
+            df: DataFrame with sma200 column
+            pd: pandas module
+            lookback_days: How many days back to compare (default 10)
+            
+        Returns:
+            True if MA(200) is sloping upward (current > 10 days ago)
+        """
+        if len(df) < max(200, lookback_days + 1):
+            return False
+            
+        # Get current MA(200) and MA(200) from lookback_days ago
+        current_ma200 = df["sma200"].iloc[-1]
+        past_ma200 = df["sma200"].iloc[-(lookback_days + 1)]
+        
+        # Check for NaN values
+        if pd.isna(current_ma200) or pd.isna(past_ma200):
+            return False
+            
+        # MA(200) is sloping upward if current > past
+        return current_ma200 > past_ma200
+    
     def _apply_strategy_rules(self, df, last, config: BullishBreakoutConfig, pd, np):
-        """Apply strategy rules and calculate score."""
+        """Apply new 7-point scoring system."""
         reasons: List[str] = []
-        metrics: Dict[str, Any] = {}
+        score = 0
         
-        # 1) Price above SMAs
-        sma_ok = (
-            last["close"] > last["sma10"]
-            and last["close"] > last["sma50"]
-            and last["close"] > last["sma200"]
-        )
-        if not sma_ok:
-            reasons.append("price_not_above_all_smas")
+        # **7-Point Entry Scoring System**
         
-        # 2) MACD crossover today + histogram positive
-        macd_cross = self._crossed_above(df["macd"], df["macd_signal"])
-        macd_hist_pos = last["macd_hist"] > 0
-        macd_above_zero = last["macd"] > 0
-        macd_ok = macd_cross and macd_hist_pos and (
-            macd_above_zero if config.strict_macd_positive else True
-        )
-        if not macd_ok:
-            reasons.append("macd_not_bullish_cross")
+        # 1. Moving Averages (3 points max)
+        points_ma = 0
         
-        # 3) RSI momentum
-        rsi = float(last["rsi14"])
-        rsi_ok = rsi > 60 and (config.allow_overbought or rsi <= 80)
-        if not rsi_ok:
-            reasons.append("rsi_not_in_range")
+        # +1 if price closes above 50-day MA
+        ma50_above = last["close"] > last["sma50"] if not pd.isna(last["sma50"]) else False
+        if ma50_above:
+            points_ma += 1
+        else:
+            reasons.append("price_below_50ma")
+            
+        # +1 if price closes above 200-day MA
+        ma200_above = last["close"] > last["sma200"] if not pd.isna(last["sma200"]) else False
+        if ma200_above:
+            points_ma += 1
+        else:
+            reasons.append("price_below_200ma")
+            
+        # +1 if 50-day MA crosses above 200-day MA (Golden Cross)
+        golden_cross = self._detect_golden_cross(df)
+        if golden_cross:
+            points_ma += 1
+        else:
+            reasons.append("no_golden_cross")
+            
+        score += points_ma
         
-        # 4) Volume confirmation
+        # 2. Volume (1 point max)
+        points_volume = 0
         vol = float(last["volume"])
         volavg20 = float(last["vol_avg20"]) if not pd.isna(last["vol_avg20"]) else 0.0
-        vol_ok = volavg20 > 0 and (vol >= config.min_volume_multiple * volavg20)
-        if not vol_ok:
-            reasons.append("volume_below_threshold")
         
-        # 5) Recent high breakout
-        ref_high = last["high_252_prior"] if config.require_52w_high else last["high_126_prior"]
-        high_ok = not pd.isna(ref_high) and (last["close"] > ref_high)
-        if not high_ok:
-            reasons.append("not_breaking_recent_high")
+        # +1 if breakout occurs on volume > 150% of 20-day average
+        volume_threshold = config.volume_threshold_multiple * volavg20
+        volume_confirmed = volavg20 > 0 and (vol >= volume_threshold)
+        if volume_confirmed:
+            points_volume = 1
+        else:
+            reasons.append("volume_below_150pct_threshold")
+            
+        score += points_volume
         
-        # Calculate scoring
-        points_sma = 25 if sma_ok else 0
+        # 3. Momentum (2 points max)
+        points_momentum = 0
+        rsi = float(last["rsi14"])
         
-        # Enhanced MACD scoring (recent crossover within 5 bars)
-        cross_mask = (df["macd"].shift(1) <= df["macd_signal"].shift(1)) & (df["macd"] > df["macd_signal"])
-        cross_dates = df.index[cross_mask.fillna(False)]
-        recent_cross = False
-        if len(cross_dates) > 0:
-            last_cross_date = cross_dates[-1]
-            try:
-                recent_cross = df.index.get_loc(last_cross_date) >= (len(df.index) - 5)
-            except Exception:
-                recent_cross = False
+        # +1 if RSI(14) > 50 but < 70 (shows momentum without overbought risk)
+        rsi_good = 50 < rsi < 70
+        if rsi_good:
+            points_momentum += 1
+        else:
+            if rsi <= 50:
+                reasons.append("rsi_below_50")
+            else:
+                reasons.append("rsi_above_70_overbought")
+                
+        # +1 if MACD line > Signal line and both > 0
+        macd_above_signal = last["macd"] > last["macd_signal"] if not pd.isna(last["macd"]) and not pd.isna(last["macd_signal"]) else False
+        macd_both_positive = (last["macd"] > 0 and last["macd_signal"] > 0) if not pd.isna(last["macd"]) and not pd.isna(last["macd_signal"]) else False
+        macd_good = macd_above_signal and macd_both_positive
+        if macd_good:
+            points_momentum += 1
+        else:
+            if not macd_above_signal:
+                reasons.append("macd_below_signal")
+            if not macd_both_positive:
+                reasons.append("macd_not_both_positive")
+                
+        score += points_momentum
         
-        macd_scored_ok = (
-            recent_cross and 
-            (last["macd_hist"] > 0) and 
-            (last["macd"] > 0 if config.strict_macd_positive else True)
-        )
-        points_macd = 20 if macd_scored_ok else 0
-        points_rsi = 20 if rsi_ok else 0
-        points_vol = 20 if vol_ok else 0
-        points_high = 15 if high_ok else 0
+        # 4. Trend Direction (1 point max)
+        points_trend = 0
         
-        base_score = points_sma + points_macd + points_rsi + points_vol + points_high
+        # +1 if MA(200) is sloping upward (current > 10 days ago)
+        ma200_slope_up = self._detect_ma200_slope_upward(df, pd)
+        if ma200_slope_up:
+            points_trend = 1
+        else:
+            reasons.append("ma200_not_sloping_up")
+            
+        score += points_trend
         
-        # Enhanced scoring metrics
-        extra_score = self._calculate_extra_score(df, last, ref_high, vol, volavg20, pd)
-        total_score = base_score + extra_score
+        # **Entry Signal:** Score ≥ 5 signals a strong buy entry
+        passed = score >= config.min_score
         
-        # Determine pass/fail
-        passed = total_score >= config.min_score
+        # **Exit/Caution Signals**
+        exit_signals = []
         
+        # Full exit if price closes below 200-day MA
+        if not ma200_above:
+            exit_signals.append("exit_below_200ma")
+            
+        # Consider trimming if RSI > 75 (overheated)
+        if rsi > 75:
+            exit_signals.append("trim_rsi_overheated")
+            
+        # **Classification/Recommendation**
+        if not ma200_above:
+            classification = "Exit"
+        elif rsi > 75:
+            classification = "Trim"
+        elif score >= 6:
+            classification = "Strong Buy"
+        elif score == 5:
+            classification = "Buy"
+        elif score == 4:
+            classification = "Watch"
+        else:  # score <= 3
+            classification = "Reduce"
+            
         # Build comprehensive metrics
-        metrics = self._build_comprehensive_metrics(
-            df, last, ref_high, vol, volavg20, rsi, config,
-            points_sma, points_macd, points_rsi, points_vol, points_high,
-            total_score, extra_score, pd
+        metrics = self._build_new_metrics(
+            df, last, vol, volavg20, rsi, config,
+            points_ma, points_volume, points_momentum, points_trend, score,
+            ma50_above, ma200_above, golden_cross, volume_confirmed,
+            rsi_good, macd_good, ma200_slope_up, classification, exit_signals, pd
         )
         
-        return total_score, passed, ([] if passed else reasons), metrics
+        return score, passed, ([] if passed else reasons), metrics
     
-    def _calculate_extra_score(self, df, last, ref_high, vol, volavg20, pd):
-        """Calculate additional scoring factors for entry quality."""
-        extra_score = 0
-        
-        # Extension from SMA50
-        ext_sma50 = ((last["close"] - last["sma50"]) / last["sma50"] * 100.0) if (
-            last.get("sma50") and last["sma50"] > 0
-        ) else None
-        
-        # ATR calculation (approximation using close-only)
-        df["tr_close"] = (df["close"] - df["close"].shift(1)).abs()
-        df["atr14"] = df["tr_close"].rolling(14).mean()
-        atr = float(df["atr14"].iloc[-1]) if not pd.isna(df["atr14"].iloc[-1]) else None
-        
-        # Breakout move in ATR terms
-        breakout_level = float(ref_high) if ref_high == ref_high else None
-        breakout_move_atr = ((last["close"] - breakout_level) / atr) if (
-            breakout_level and atr and atr > 0
-        ) else None
-        
-        # Volume continuity
-        vol_2day = df["volume"].tail(2).mean()
-        vol_continuity_ratio = (vol_2day / volavg20) if (volavg20 and volavg20 > 0) else None
-        
-        # Scoring adjustments
-        if ext_sma50 is not None and ext_sma50 < 12:
-            extra_score += 5
-        if breakout_move_atr is not None and breakout_move_atr <= 2:
-            extra_score += 5
-        if vol_continuity_ratio and vol_continuity_ratio >= 1.2:
-            extra_score += 3
-        
-        return extra_score
-    
-    def _build_comprehensive_metrics(self, df, last, ref_high, vol, volavg20, rsi, config,
-                                   points_sma, points_macd, points_rsi, points_vol, points_high,
-                                   total_score, extra_score, pd):
-        """Build comprehensive metrics dictionary."""
+    def _build_new_metrics(self, df, last, vol, volavg20, rsi, config,
+                          points_ma, points_volume, points_momentum, points_trend, score,
+                          ma50_above, ma200_above, golden_cross, volume_confirmed,
+                          rsi_good, macd_good, ma200_slope_up, classification, exit_signals, pd):
+        """Build comprehensive metrics dictionary for new 7-point system."""
         # Previous close for change calculation
         prev_close = float(df["close"].iloc[-2]) if len(df) >= 2 else None
         change_pct = ((float(last["close"]) - prev_close) / prev_close * 100.0) if (
             prev_close is not None and prev_close != 0
         ) else None
         
-        # Breakout metrics
-        breakout_level = float(ref_high) if ref_high == ref_high else None
-        breakout_pct = ((float(last["close"]) - breakout_level) / breakout_level * 100.0) if (
-            breakout_level and breakout_level != 0
-        ) else None
-        
-        volume_multiple = (vol / volavg20) if volavg20 else None
-        
-        # Risk assessment
-        risk = "Low"
-        if ((rsi and rsi > 75) or 
-            (breakout_pct and breakout_pct > 5.0) or 
-            (volume_multiple and volume_multiple > 2.5)):
-            risk = "High"
-        elif (rsi and rsi > 70) or (volume_multiple and volume_multiple > 1.8):
-            risk = "Medium"
-        
-        # Recommendation
-        if total_score >= 85 and risk in ("Low", "Medium"):
-            recommendation = "Buy"
-        elif total_score >= config.min_score:
-            recommendation = "Watch"
-        else:
-            recommendation = "Wait"
+        volume_multiple = (vol / volavg20) if volavg20 and volavg20 > 0 else None
         
         return {
+            # Basic price and technical data
             "close": round(float(last["close"]), 4),
             "sma10": round(float(last["sma10"]), 4) if not pd.isna(last["sma10"]) else None,
             "sma50": round(float(last["sma50"]), 4) if not pd.isna(last["sma50"]) else None,
@@ -536,22 +582,36 @@ class BullishBreakoutService(BaseStrategyService):
             "volume": int(vol),
             "vol_avg20": int(volavg20) if volavg20 else None,
             "volume_multiple": round(volume_multiple, 2) if volume_multiple else None,
-            "ref_high": round(breakout_level, 4) if breakout_level else None,
-            "require_52w_high": config.require_52w_high,
             "change_pct": round(change_pct, 2) if change_pct is not None else None,
-            "breakout_pct": round(breakout_pct, 2) if breakout_pct is not None else None,
-            "points_sma": points_sma,
-            "points_macd": points_macd,
-            "points_rsi": points_rsi,
-            "points_volume": points_vol,
-            "points_high": points_high,
-            "score": total_score,
-            "extra_score": extra_score,
-            "risk": risk,
-            "recommendation": recommendation,
-            "sma10_above": bool(last["close"] > last["sma10"]) if not pd.isna(last["sma10"]) else None,
-            "sma50_above": bool(last["close"] > last["sma50"]) if not pd.isna(last["sma50"]) else None,
-            "sma200_above": bool(last["close"] > last["sma200"]) if not pd.isna(last["sma200"]) else None,
+            
+            # New 7-point scoring components
+            "points_moving_averages": points_ma,
+            "points_volume": points_volume,
+            "points_momentum": points_momentum,
+            "points_trend_direction": points_trend,
+            "score": score,
+            "max_score": 7,
+            
+            # Individual component flags
+            "ma50_above": ma50_above,
+            "ma200_above": ma200_above,
+            "golden_cross": golden_cross,
+            "volume_confirmed": volume_confirmed,
+            "rsi_good_range": rsi_good,
+            "macd_bullish": macd_good,
+            "ma200_slope_upward": ma200_slope_up,
+            
+            # Classification and signals
+            "recommendation": classification,
+            "exit_signals": exit_signals,
+            
+            # Volume threshold used
+            "volume_threshold_multiple": config.volume_threshold_multiple,
+            "volume_threshold": round(config.volume_threshold_multiple * volavg20, 0) if volavg20 else None,
+            
+            # Additional context
+            "entry_threshold": config.min_score,
+            "system_version": "7-point"
         }
     
     def _enrich_company_names(self, results: List[TickerEvaluation], progress_callback: ProgressCallback):

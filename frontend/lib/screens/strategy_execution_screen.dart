@@ -5,6 +5,7 @@ import '../models/strategies.dart';
 import '../providers/execution_provider.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/error_widget.dart';
+import '../widgets/report_viewer_dialog.dart';
 import '../services/api_service.dart';
 
 class StrategyExecutionScreen extends ConsumerStatefulWidget {
@@ -464,12 +465,23 @@ class ExecutionMonitorCard extends ConsumerWidget {
                   label: const Text('View Details'),
                 ),
                 const Spacer(),
-                if (execution.status == ExecutionState.completed)
+                if (execution.status == ExecutionState.completed) ...[
                   ElevatedButton.icon(
                     onPressed: () => _viewResults(context, ref),
                     icon: const Icon(Icons.visibility),
                     label: const Text('View Results'),
                   ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _generateReport(context),
+                    icon: const Icon(Icons.description),
+                    label: const Text('Generate Report'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -610,6 +622,32 @@ class ExecutionMonitorCard extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load results: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _generateReport(BuildContext context) async {
+    try {
+      // First, get the strategy run details to obtain the strategy code
+      final runDetail = await ApiService.getStrategyRunDetail(execution.runId);
+      
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => ReportViewerDialog(
+            runId: execution.runId,
+            strategyCode: runDetail.strategyCode,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load strategy details: $e'),
             backgroundColor: Colors.red,
           ),
         );
