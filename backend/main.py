@@ -17,6 +17,7 @@ from .api.holdings import router as holdings_router
 from .api.instruments import router as instruments_router
 from .api.health import router as health_router
 from .api.strategies import router as strategies_router
+from .api.stocks import router as stocks_router
 # Import working simplified router (renamed for clarity)
 from .api.strategy_execution_simplified import router as strategy_execution_simplified_router
 
@@ -123,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix="/api", tags=["health"])
     app.include_router(holdings_router, prefix="/api", tags=["holdings"])
     app.include_router(instruments_router, prefix="/api", tags=["instruments"])
+    app.include_router(stocks_router, prefix="/api", tags=["stocks"])
     # Use the working simplified router with /api prefix - register before strategies_router
     # to ensure /strategies/queue endpoint is matched before general /strategies endpoints
     app.include_router(strategy_execution_simplified_router, prefix="/api", tags=["strategy-execution"])

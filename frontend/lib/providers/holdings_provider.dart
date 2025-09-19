@@ -115,12 +115,11 @@ final autoRefreshProvider = StreamProvider<int>((ref) {
 
 // Provider that triggers refresh when auto-refresh emits
 final refreshTriggerProvider = Provider<void>((ref) {
-  ref.listen(autoRefreshProvider, (previous, next) {
-    next.whenData((value) {
-      // Invalidate providers to trigger refresh
-      ref.invalidate(holdingsSummaryProvider);
-      ref.invalidate(positionsProvider);
-    });
+  // Watch the auto-refresh provider to trigger invalidation
+  ref.watch(autoRefreshProvider).whenData((value) {
+    // Invalidate providers to trigger refresh
+    ref.invalidate(holdingsSummaryProvider);
+    ref.invalidate(positionsProvider);
   });
 });
 

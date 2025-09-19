@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../models/holdings.dart';
 import '../models/strategies.dart';
+import '../models/stock_detail.dart';
 
 class ApiService {
   static const String baseUrl = 'http://localhost:8000';
@@ -13,12 +14,10 @@ class ApiService {
   // Holdings endpoints
   static Future<HoldingsSummary> getHoldingsSummary() async {
     try {
-      final response = await _client
-          .get(
-            Uri.parse('$baseUrl/api/holdings/summary'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        Uri.parse('$baseUrl/api/holdings/summary'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -46,15 +45,13 @@ class ApiService {
       if (ticker != null) queryParams['ticker'] = ticker;
       if (limit != null) queryParams['limit'] = limit.toString();
 
-      final uri = Uri.parse('$baseUrl/api/holdings/positions')
-          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+      final uri = Uri.parse('$baseUrl/api/holdings/positions').replace(
+          queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-      final response = await _client
-          .get(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -75,12 +72,10 @@ class ApiService {
   static Future<List<String>> getAccounts() async {
     try {
       final uri = Uri.parse('$baseUrl/api/holdings/accounts');
-      final response = await _client
-          .get(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -91,7 +86,8 @@ class ApiService {
               .toList();
           return accounts;
         } else {
-          throw ApiException('Unexpected accounts response shape', response.statusCode);
+          throw ApiException(
+              'Unexpected accounts response shape', response.statusCode);
         }
       } else {
         throw ApiException(
@@ -119,17 +115,16 @@ class ApiService {
       if (size != null) queryParams['size'] = size.toString();
       if (ticker != null) queryParams['ticker'] = ticker;
       if (sector != null) queryParams['sector'] = sector;
-      if (instrumentType != null) queryParams['instrument_type'] = instrumentType;
+      if (instrumentType != null)
+        queryParams['instrument_type'] = instrumentType;
 
-      final uri = Uri.parse('$baseUrl/api/instruments')
-          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+      final uri = Uri.parse('$baseUrl/api/instruments').replace(
+          queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-      final response = await _client
-          .get(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -148,12 +143,10 @@ class ApiService {
   // Health check endpoint
   static Future<Map<String, dynamic>> healthCheck() async {
     try {
-      final response = await _client
-          .get(
-            Uri.parse('$baseUrl/api/health'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        Uri.parse('$baseUrl/api/health'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -191,15 +184,13 @@ class ApiService {
       if (orderBy != null) queryParams['order_by'] = orderBy;
       if (orderDesc != null) queryParams['order_desc'] = orderDesc.toString();
 
-      final uri = Uri.parse('$baseUrl/api/strategies/runs')
-          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+      final uri = Uri.parse('$baseUrl/api/strategies/runs').replace(
+          queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-      final response = await _client
-          .get(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -218,12 +209,10 @@ class ApiService {
 
   static Future<StrategyRunDetail> getStrategyRunDetail(String runId) async {
     try {
-      final response = await _client
-          .get(
-            Uri.parse('$baseUrl/api/strategies/runs/$runId'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        Uri.parse('$baseUrl/api/strategies/runs/$runId'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -258,7 +247,8 @@ class ApiService {
       if (passed != null) queryParams['passed'] = passed.toString();
       if (minScore != null) queryParams['min_score'] = minScore.toString();
       if (maxScore != null) queryParams['max_score'] = maxScore.toString();
-      if (classification != null) queryParams['classification'] = classification;
+      if (classification != null)
+        queryParams['classification'] = classification;
       if (ticker != null) queryParams['ticker'] = ticker;
       if (sector != null) queryParams['sector'] = sector;
       if (limit != null) queryParams['limit'] = limit.toString();
@@ -267,14 +257,13 @@ class ApiService {
       if (orderDesc != null) queryParams['order_desc'] = orderDesc.toString();
 
       final uri = Uri.parse('$baseUrl/api/strategies/runs/$runId/results')
-          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+          .replace(
+              queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-      final response = await _client
-          .get(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -300,15 +289,13 @@ class ApiService {
       if (strategyCodes != null) queryParams['strategy_codes'] = strategyCodes;
       if (limit != null) queryParams['limit'] = limit.toString();
 
-      final uri = Uri.parse('$baseUrl/api/strategies/latest')
-          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+      final uri = Uri.parse('$baseUrl/api/strategies/latest').replace(
+          queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-      final response = await _client
-          .get(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -338,7 +325,7 @@ class ApiService {
           )
           .timeout(timeout);
 
-     if (response.statusCode == 200) {
+      if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         return StrategyExecutionResponse.fromJson(jsonData);
       } else {
@@ -355,12 +342,10 @@ class ApiService {
 
   static Future<ExecutionStatus> getExecutionStatus(String runId) async {
     try {
-      final response = await _client
-          .get(
-            Uri.parse('$baseUrl/api/strategies/status/$runId'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        Uri.parse('$baseUrl/api/strategies/status/$runId'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -377,14 +362,13 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> getStrategyExecutionResults(String runId) async {
+  static Future<Map<String, dynamic>> getStrategyExecutionResults(
+      String runId) async {
     try {
-      final response = await _client
-          .get(
-            Uri.parse('$baseUrl/api/strategies/results/$runId'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        Uri.parse('$baseUrl/api/strategies/results/$runId'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -403,12 +387,10 @@ class ApiService {
 
   static Future<ExecutionCancelResponse> cancelExecution(String runId) async {
     try {
-      final response = await _client
-          .post(
-            Uri.parse('$baseUrl/api/strategies/cancel/$runId'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.post(
+        Uri.parse('$baseUrl/api/strategies/cancel/$runId'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -427,12 +409,10 @@ class ApiService {
 
   static Future<ExecutionQueueResponse> getExecutionQueue() async {
     try {
-      final response = await _client
-          .get(
-            Uri.parse('$baseUrl/api/strategies/queue'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(timeout);
+      final response = await _client.get(
+        Uri.parse('$baseUrl/api/strategies/queue'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -449,12 +429,146 @@ class ApiService {
     }
   }
 
+  static Future<List<String>> getInstrumentTickers({int limit = 100}) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/instruments').replace(
+        queryParameters: {'limit': limit.toString()},
+      );
+
+      final response = await _client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData is Map && jsonData['instruments'] is List) {
+          final tickers = <String>{};
+          for (final instrument in jsonData['instruments'] as List) {
+            final ticker =
+                (instrument['ticker'] ?? '').toString().toUpperCase();
+            if (ticker.isNotEmpty) {
+              tickers.add(ticker);
+            }
+          }
+          final sortedTickers = tickers.toList()..sort();
+          return sortedTickers;
+        } else {
+          throw ApiException(
+              'Unexpected instruments response shape', response.statusCode);
+        }
+      } else {
+        throw ApiException(
+          'Failed to load instruments: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<StockDetail> getStockInfo(
+    String symbol, {
+    bool includeTechnical = true,
+    bool includePerformance = true,
+  }) async {
+    final trimmed = symbol.trim();
+    if (trimmed.isEmpty) {
+      throw ApiException('Symbol cannot be empty', 400);
+    }
+
+    final normalized = trimmed.toUpperCase();
+
+    try {
+      final uri = Uri.parse('$baseUrl/api/stocks/$normalized/info').replace(
+        queryParameters: {
+          'include_technical': includeTechnical.toString(),
+          'include_performance': includePerformance.toString(),
+        },
+      );
+
+      final response = await _client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData is Map<String, dynamic>) {
+          return StockDetail.fromJson(jsonData);
+        }
+        if (jsonData is Map) {
+          return StockDetail.fromJson(Map<String, dynamic>.from(jsonData));
+        }
+        throw ApiException(
+            'Unexpected stock info response type', response.statusCode);
+      } else {
+        final message = response.body.isNotEmpty
+            ? response.body
+            : 'Status ${response.statusCode}';
+        throw ApiException(
+            'Failed to load stock info: $message', response.statusCode);
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<StrategyHistoryResponse> getStockStrategyHistory(
+    String symbol, {
+    int? limit,
+  }) async {
+    final trimmed = symbol.trim();
+    if (trimmed.isEmpty) {
+      throw ApiException('Symbol cannot be empty', 400);
+    }
+
+    final normalized = trimmed.toUpperCase();
+
+    try {
+      final queryParams = <String, String>{};
+      if (limit != null) queryParams['limit'] = limit.toString();
+
+      final uri = Uri.parse('$baseUrl/api/stocks/$normalized/strategy-history').replace(
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      final response = await _client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData is Map<String, dynamic>) {
+          return StrategyHistoryResponse.fromJson(jsonData);
+        }
+        if (jsonData is Map) {
+          return StrategyHistoryResponse.fromJson(Map<String, dynamic>.from(jsonData));
+        }
+        throw ApiException(
+            'Unexpected strategy history response type', response.statusCode);
+      } else {
+        final message = response.body.isNotEmpty
+            ? response.body
+            : 'Status ${response.statusCode}';
+        throw ApiException(
+            'Failed to load strategy history: $message', response.statusCode);
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: ${e.toString()}', 0);
+    }
+  }
+
   // Dispose method to close the client
   static void dispose() {
     _client.close();
   }
 }
-
 
 class ApiException implements Exception {
   final String message;
