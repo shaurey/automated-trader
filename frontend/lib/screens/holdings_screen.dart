@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../providers/holdings_provider.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/error_widget.dart';
+import '../widgets/holdings_import_dialog.dart';
 import '../models/holdings.dart';
 
 class HoldingsScreen extends ConsumerWidget {
@@ -17,6 +18,13 @@ class HoldingsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Holdings'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.upload_file),
+            onPressed: () {
+              _showImportDialog(context);
+            },
+            tooltip: 'Import Holdings',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -469,6 +477,13 @@ class HoldingsScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showImportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const HoldingsImportDialog(),
     );
   }
 }

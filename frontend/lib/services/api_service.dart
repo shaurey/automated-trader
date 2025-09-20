@@ -564,6 +564,54 @@ class ApiService {
     }
   }
 
+  // Holdings Import endpoint
+  static Future<HoldingsImportResponse> importHoldingsFromCsv({
+    required List<int> fileBytes,
+    required String fileName,
+    bool replaceExisting = true,
+  }) async {
+    try {
+      // Create multipart request
+      final uri = Uri.parse('$baseUrl/api/holdings/import');
+      final request = http.MultipartRequest('POST', uri);
+      
+      // Add form fields
+      request.fields['replace_existing'] = replaceExisting.toString();
+      
+      // Add file
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          fileBytes,
+          filename: fileName,
+        ),
+      );
+      
+      // Send request
+      final streamedResponse = await request.send().timeout(timeout);
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return HoldingsImportResponse.fromJson(jsonData);
+      } else {
+        String errorMessage = 'Failed to import holdings: ${response.statusCode}';
+        try {
+          final errorData = json.decode(response.body);
+          if (errorData['detail'] != null) {
+            errorMessage = errorData['detail'];
+          }
+        } catch (_) {
+          // Use default error message if JSON parsing fails
+        }
+        throw ApiException(errorMessage, response.statusCode);
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error during import: ${e.toString()}', 0);
+    }
+  }
+
   // Dispose method to close the client
   static void dispose() {
     _client.close();

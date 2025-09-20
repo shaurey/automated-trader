@@ -493,3 +493,62 @@ class ExecutionQueueResponse(BaseModel):
     queue: List[QueuedExecution] = Field(description="List of queued and running executions")
     total_queued: int = Field(description="Total number of queued executions")
     max_concurrent: int = Field(description="Maximum concurrent executions allowed")
+
+
+# Holdings Import Models
+
+class DetectedAccount(BaseModel):
+    """Account detected in CSV file."""
+    account_number: str
+    account_name: Optional[str] = None
+    record_count: int
+    sample_tickers: List[str] = Field(default_factory=list)
+
+
+class ImportedHoldingRecord(BaseModel):
+    """Individual holding record from CSV import."""
+    ticker: str
+    account_number: str
+    account_name: Optional[str] = None
+    quantity: float
+    cost_basis: float
+    current_value: Optional[float] = None
+    row_number: int
+    status: str = "success"  # success, error, skipped
+    error_message: Optional[str] = None
+
+
+class AccountImportSummary(BaseModel):
+    """Summary of import results for a single account."""
+    account_number: str
+    account_name: Optional[str] = None
+    total_rows_processed: int
+    records_imported: int
+    records_skipped: int
+    records_failed: int
+    existing_holdings_deleted: int
+    import_successful: bool
+
+
+class HoldingsImportSummary(BaseModel):
+    """Overall summary of holdings import results."""
+    total_rows_processed: int
+    total_accounts_detected: int
+    total_records_imported: int
+    total_records_skipped: int
+    total_records_failed: int
+    total_existing_holdings_deleted: int
+    import_successful: bool
+    account_summaries: List[AccountImportSummary] = Field(default_factory=list)
+
+
+class HoldingsImportResponse(BaseModel):
+    """Response schema for holdings CSV import."""
+    detected_accounts: List[DetectedAccount] = Field(default_factory=list)
+    import_summary: HoldingsImportSummary
+    imported_records: List[ImportedHoldingRecord] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    
+    model_config = ConfigDict(from_attributes=True)

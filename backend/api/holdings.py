@@ -1,11 +1,11 @@
 """Holdings API endpoints for portfolio and position management."""
 
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 import sqlite3
 
 from ..models.schemas import (
-    PositionsResponse, PortfolioSummaryResponse, ErrorResponse
+    PositionsResponse, PortfolioSummaryResponse, ErrorResponse, HoldingsImportResponse
 )
 from ..database.connection import get_database_connection, get_db_manager
 from ..services.holdings_service import HoldingsService
@@ -234,4 +234,76 @@ async def get_holding_detail(ticker: str):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve holding detail for {ticker}: {str(e)}"
+        )
+
+
+@router.post("/holdings/import", response_model=HoldingsImportResponse)
+async def import_holdings_csv(
+    file: UploadFile = File(..., description="CSV file containing holdings data"),
+    replace_existing: bool = Form(True, description="Whether to replace all existing holdings for detected accounts")
+):
+    """Import holdings from a CSV file with automatic account detection.
+    
+    Accepts a CSV file with holdings data and automatically detects accounts from the file.
+    The CSV should contain the following columns:
+    - Account Number: Account identifier (automatically detected)
+    - Account Name: Account name (optional, automatically detected)
+    - Symbol: Stock ticker symbol
+    - Quantity: Number of shares held
+    - Current Value: Current market value of the position
+    - Cost Basis Total: Total cost basis for the position
+    - Type: Type of holding (stocks only, cash and options are skipped)
+    
+    The import process will:
+    - Automatically detect all accounts present in the CSV
+    - Skip non-stock entries (cash, options)
+    - Skip pending activity entries
+    - Skip disclaimer text at bottom of file
+    - Optionally replace all existing holdings for detected accounts
+    - Provide detailed import summary and error reporting per account
+    
+    Args:
+        file: CSV file upload
+        replace_existing: Whether to replace existing holdings for detected accounts (default: True)
+        
+    Returns:
+        HoldingsImportResponse with detected accounts, import results and summary per account
+    """
+    try:
+        # Validate file type
+        if not file.filename or not file.filename.lower().endswith('.csv'):
+            raise HTTPException(
+                status_code=400,
+                detail="File must be a CSV file"
+            )
+        
+        # Read file content
+        content = await file.read()
+        
+        # Decode content as text
+        try:
+            csv_content = content.decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                csv_content = content.decode('utf-8-sig')  # Try with BOM
+            except UnicodeDecodeError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Unable to decode CSV file. Please ensure it's saved as UTF-8."
+                )
+        
+        # Call the holdings service to process the import with automatic account detection
+        result = holdings_service.import_holdings_from_csv(
+            csv_content=csv_content,
+            replace_existing=replace_existing
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to import holdings: {str(e)}"
         )

@@ -2,6 +2,70 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/holdings.dart';
 import '../services/api_service.dart';
 
+// Holdings Import State Management
+class HoldingsImportState {
+  final bool isImporting;
+  final HoldingsImportResponse? lastImportResult;
+  final String? error;
+
+  const HoldingsImportState({
+    this.isImporting = false,
+    this.lastImportResult,
+    this.error,
+  });
+
+  HoldingsImportState copyWith({
+    bool? isImporting,
+    HoldingsImportResponse? lastImportResult,
+    String? error,
+  }) {
+    return HoldingsImportState(
+      isImporting: isImporting ?? this.isImporting,
+      lastImportResult: lastImportResult ?? this.lastImportResult,
+      error: error ?? this.error,
+    );
+  }
+}
+
+// Holdings Import Provider
+class HoldingsImportNotifier extends StateNotifier<HoldingsImportState> {
+  HoldingsImportNotifier() : super(const HoldingsImportState());
+
+  Future<bool> importHoldingsFromFile({
+    required List<int> fileBytes,
+    required String fileName,
+    bool replaceExisting = true,
+  }) async {
+    state = state.copyWith(isImporting: true, error: null);
+
+    try {
+      final result = await ApiService.importHoldingsFromCsv(
+        fileBytes: fileBytes,
+        fileName: fileName,
+        replaceExisting: replaceExisting,
+      );
+
+      state = state.copyWith(
+        isImporting: false,
+        lastImportResult: result,
+        error: null,
+      );
+
+      return result.importSummary.importSuccessful;
+    } catch (e) {
+      state = state.copyWith(
+        isImporting: false,
+        error: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  void clearImportState() {
+    state = const HoldingsImportState();
+  }
+}
+
 // Holdings Summary Provider
 final holdingsSummaryProvider = FutureProvider<HoldingsSummary>((ref) async {
   return await ApiService.getHoldingsSummary();
@@ -47,6 +111,25 @@ final accountsProvider = FutureProvider<List<String>>((ref) async {
     // Return empty list on failure to keep UI functional
     return [];
   }
+});
+
+// Holdings Import Provider
+final holdingsImportProvider = StateNotifierProvider<HoldingsImportNotifier, HoldingsImportState>((ref) {
+  return HoldingsImportNotifier();
+});
+
+// Provider to refresh holdings after successful import
+final refreshHoldingsAfterImportProvider = Provider<void>((ref) {
+  ref.listen(holdingsImportProvider, (previous, current) {
+    if (previous?.lastImportResult == null && 
+        current.lastImportResult != null && 
+        current.lastImportResult!.importSummary.importSuccessful) {
+      // Refresh holdings data after successful import
+      ref.invalidate(holdingsSummaryProvider);
+      ref.invalidate(positionsProvider);
+      ref.invalidate(accountsProvider);
+    }
+  });
 });
 
 // Filtered positions provider that combines positions with filters

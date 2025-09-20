@@ -5,6 +5,8 @@ data processing for holdings-related API endpoints.
 """
 
 import logging
+import csv
+import io
 from typing import List, Optional, Dict, Any
 import sqlite3
 from datetime import datetime
@@ -13,7 +15,9 @@ from ..database.connection import DatabaseManager
 from ..database.models import HoldingWithInstrument
 from ..models.schemas import (
     PositionResponse, PortfolioSummaryResponse, AccountSummary,
-    SectorAllocation, StyleAllocation, TopHolding, PositionsResponse
+    SectorAllocation, StyleAllocation, TopHolding, PositionsResponse,
+    HoldingsImportResponse, HoldingsImportSummary, ImportedHoldingRecord,
+    DetectedAccount, AccountImportSummary
 )
 from .market_data_service import MarketDataService
 
@@ -340,33 +344,363 @@ class HoldingsService:
         return allocations
     
     def _get_top_holdings(self, holdings: List[HoldingWithInstrument], total_value: float, limit: int = 10) -> List[TopHolding]:
-        """Get top holdings by market value."""
-        # Sort by market value descending
-        sorted_holdings = sorted(holdings, key=lambda x: x.market_value or 0, reverse=True)
+        """Get top holdings by market value, aggregated by ticker across accounts."""
+        from collections import defaultdict
         
-        top_holdings = []
-        for holding in sorted_holdings[:limit]:
-            weight = ((holding.market_value or 0) / total_value * 100) if total_value > 0 else 0.0
+        # Group holdings by ticker
+        ticker_holdings = defaultdict(list)
+        for holding in holdings:
+            ticker_holdings[holding.ticker].append(holding)
+        
+        # Aggregate holdings by ticker
+        aggregated_holdings = []
+        for ticker, ticker_positions in ticker_holdings.items():
+            # Use the first position for non-aggregatable fields
+            first_position = ticker_positions[0]
             
+            # Aggregate quantities and values
+            total_quantity = sum(pos.quantity for pos in ticker_positions)
+            total_market_value = sum(pos.market_value or 0 for pos in ticker_positions)
+            total_cost_basis = sum(pos.cost_basis or 0 for pos in ticker_positions if pos.cost_basis)  # cost_basis is already total cost
+            
+            # Calculate weighted average cost basis per share
+            avg_cost_basis_per_share = total_cost_basis / total_quantity if total_quantity > 0 and total_cost_basis > 0 else None
+            
+            # Calculate current price (use first position's price)
+            current_price = first_position.current_price
+            
+            # Calculate gain/loss
             gain_loss = None
             gain_loss_percent = None
-            if holding.cost_basis and holding.market_value:
-                total_cost = holding.cost_basis  # total cost
-                gain_loss = holding.market_value - total_cost
-                if total_cost > 0:
-                    gain_loss_percent = (gain_loss / total_cost) * 100
+            if total_cost_basis > 0 and total_market_value > 0:
+                gain_loss = total_market_value - total_cost_basis
+                gain_loss_percent = (gain_loss / total_cost_basis) * 100
+            
+            aggregated_holdings.append({
+                'ticker': ticker,
+                'company_name': first_position.company_name,
+                'quantity': total_quantity,
+                'current_price': current_price,
+                'market_value': total_market_value,
+                'cost_basis': total_cost_basis,  # Total cost basis across all accounts
+                'avg_cost_basis_per_share': avg_cost_basis_per_share,
+                'gain_loss': gain_loss,
+                'gain_loss_percent': gain_loss_percent,
+                'sector': first_position.sector,
+                'account_count': len(ticker_positions)  # Track how many accounts have this ticker
+            })
+        
+        # Sort by total market value descending
+        sorted_aggregated = sorted(aggregated_holdings, key=lambda x: x['market_value'] or 0, reverse=True)
+        
+        # Create TopHolding objects for the top holdings
+        top_holdings = []
+        for holding_data in sorted_aggregated[:limit]:
+            weight = ((holding_data['market_value'] or 0) / total_value * 100) if total_value > 0 else 0.0
             
             top_holdings.append(TopHolding(
-                ticker=holding.ticker,
-                company_name=holding.company_name,
-                quantity=holding.quantity,
-                current_price=holding.current_price,
-                market_value=holding.market_value,
-                cost_basis=holding.cost_basis,
-                gain_loss=gain_loss,
-                gain_loss_percent=gain_loss_percent,
+                ticker=holding_data['ticker'],
+                company_name=holding_data['company_name'],
+                quantity=holding_data['quantity'],
+                current_price=holding_data['current_price'],
+                market_value=holding_data['market_value'],
+                cost_basis=holding_data['cost_basis'],  # Use total cost basis (same as original implementation)
+                gain_loss=holding_data['gain_loss'],
+                gain_loss_percent=holding_data['gain_loss_percent'],
                 weight=weight if weight > 0 else None,
-                sector=holding.sector
+                sector=holding_data['sector']
             ))
         
         return top_holdings
+    
+    def import_holdings_from_csv(
+        self,
+        csv_content: str,
+        replace_existing: bool = True
+    ) -> HoldingsImportResponse:
+        """Import holdings from CSV content with automatic account detection.
+        
+        Args:
+            csv_content: CSV file content as string
+            replace_existing: Whether to replace all existing holdings for detected accounts
+            
+        Returns:
+            HoldingsImportResponse with import results and summary
+        """
+        logger.info("Starting CSV import with automatic account detection")
+        
+        imported_records = []
+        errors = []
+        warnings = []
+        total_rows_processed = 0
+        total_records_imported = 0
+        total_records_skipped = 0
+        total_records_failed = 0
+        total_existing_holdings_deleted = 0
+        
+        # Account tracking
+        detected_accounts = {}  # account_number -> DetectedAccount
+        account_summaries = {}  # account_number -> AccountImportSummary
+        
+        try:
+            # Parse CSV content
+            csv_file = io.StringIO(csv_content)
+            csv_reader = csv.DictReader(csv_file)
+            
+            # Validate CSV headers
+            expected_headers = {'Account Number', 'Symbol', 'Quantity', 'Current Value', 'Cost Basis Total', 'Type'}
+            if not expected_headers.issubset(set(csv_reader.fieldnames or [])):
+                missing_headers = expected_headers - set(csv_reader.fieldnames or [])
+                raise ValueError(f"Missing required CSV headers: {missing_headers}")
+            
+            # First pass: detect accounts and preview data
+            first_pass_rows = []
+            for row_number, row in enumerate(csv_reader, start=2):
+                first_pass_rows.append((row_number, row))
+                
+                # Skip empty rows and disclaimer lines
+                row_values = list(row.values())
+                if not any(value and str(value).strip() for value in row_values):
+                    continue
+                    
+                if any(str(value).strip().startswith('"') for value in row_values if value and str(value).strip()):
+                    continue
+                
+                # Skip pending activity entries
+                description = row.get('Description', '') or ''
+                if 'Pending activity' in str(description):
+                    continue
+                
+                # Skip cash entries
+                entry_type = row.get('Type', '').strip()
+                if entry_type.lower() == 'cash':
+                    continue
+                
+                # Skip options
+                symbol = (row.get('Symbol') or '').strip()
+                if symbol.startswith(' -') or symbol.startswith('-') or not symbol:
+                    continue
+                
+                # Extract account information
+                account_number = (row.get('Account Number') or '').strip()
+                account_name = (row.get('Account Name') or '').strip() or None
+                
+                if account_number:
+                    if account_number not in detected_accounts:
+                        detected_accounts[account_number] = DetectedAccount(
+                            account_number=account_number,
+                            account_name=account_name,
+                            record_count=0,
+                            sample_tickers=[]
+                        )
+                    
+                    detected_accounts[account_number].record_count += 1
+                    if len(detected_accounts[account_number].sample_tickers) < 3:
+                        detected_accounts[account_number].sample_tickers.append(symbol.upper())
+            
+            if not detected_accounts:
+                raise ValueError("No valid account data found in CSV file")
+            
+            logger.info(f"Detected {len(detected_accounts)} accounts: {list(detected_accounts.keys())}")
+            
+            # Start database transaction
+            with self.db_manager.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Initialize account summaries
+                for account_number, account_info in detected_accounts.items():
+                    account_summaries[account_number] = AccountImportSummary(
+                        account_number=account_number,
+                        account_name=account_info.account_name,
+                        total_rows_processed=0,
+                        records_imported=0,
+                        records_skipped=0,
+                        records_failed=0,
+                        existing_holdings_deleted=0,
+                        import_successful=False
+                    )
+                
+                # Replace existing holdings for detected accounts if requested
+                if replace_existing:
+                    for account_number in detected_accounts.keys():
+                        delete_query = "DELETE FROM holdings WHERE account = ?"
+                        cursor.execute(delete_query, (account_number,))
+                        deleted_count = cursor.rowcount
+                        account_summaries[account_number].existing_holdings_deleted = deleted_count
+                        total_existing_holdings_deleted += deleted_count
+                        logger.info(f"Deleted {deleted_count} existing holdings for account {account_number}")
+                
+                # Second pass: process and import data
+                for row_number, row in first_pass_rows:
+                    total_rows_processed += 1
+                    
+                    try:
+                        # Skip disclaimer lines and empty rows
+                        row_values = list(row.values())
+                        if not any(value and str(value).strip() for value in row_values):
+                            total_records_skipped += 1
+                            continue
+                        
+                        if any(str(value).strip().startswith('"') for value in row_values if value and str(value).strip()):
+                            total_records_skipped += 1
+                            continue
+                        
+                        # Skip pending activity entries
+                        description = row.get('Description', '') or ''
+                        if 'Pending activity' in str(description):
+                            total_records_skipped += 1
+                            continue
+                        
+                        # Skip cash entries
+                        entry_type = row.get('Type', '').strip()
+                        if entry_type.lower() == 'cash':
+                            total_records_skipped += 1
+                            continue
+                        
+                        # Skip options
+                        symbol = (row.get('Symbol') or '').strip()
+                        if symbol.startswith(' -') or symbol.startswith('-'):
+                            total_records_skipped += 1
+                            continue
+                        
+                        # Skip empty symbols
+                        if not symbol:
+                            total_records_skipped += 1
+                            continue
+                        
+                        # Extract data
+                        account_number = (row.get('Account Number') or '').strip()
+                        account_name = (row.get('Account Name') or '').strip() or None
+                        quantity_str = (row.get('Quantity') or '').strip()
+                        current_value_str = (row.get('Current Value') or '').strip()
+                        cost_basis_str = (row.get('Cost Basis Total') or '').strip()
+                        
+                        # Update account processing count
+                        if account_number in account_summaries:
+                            account_summaries[account_number].total_rows_processed += 1
+                        
+                        # Parse numeric values
+                        try:
+                            quantity = float(quantity_str.replace(',', '')) if quantity_str else 0.0
+                            current_value = float(current_value_str.replace(',', '').replace('$', '')) if current_value_str else None
+                            cost_basis = float(cost_basis_str.replace(',', '').replace('$', '')) if cost_basis_str else None
+                        except ValueError as e:
+                            error_msg = f"Row {row_number}: Invalid numeric data - {str(e)}"
+                            errors.append(error_msg)
+                            imported_records.append(ImportedHoldingRecord(
+                                ticker=symbol,
+                                account_number=account_number,
+                                account_name=account_name,
+                                quantity=0.0,
+                                cost_basis=0.0,
+                                current_value=current_value,
+                                row_number=row_number,
+                                status="error",
+                                error_message=error_msg
+                            ))
+                            total_records_failed += 1
+                            if account_number in account_summaries:
+                                account_summaries[account_number].records_failed += 1
+                            continue
+                        
+                        # Skip zero quantity holdings
+                        if quantity <= 0:
+                            total_records_skipped += 1
+                            if account_number in account_summaries:
+                                account_summaries[account_number].records_skipped += 1
+                            continue
+                        
+                        # Insert holding into database
+                        insert_query = """
+                        INSERT INTO holdings (account, ticker, quantity, cost_basis, last_update)
+                        VALUES (?, ?, ?, ?, ?)
+                        """
+                        
+                        cursor.execute(insert_query, (
+                            account_number,
+                            symbol.upper(),
+                            quantity,
+                            cost_basis,
+                            datetime.utcnow().isoformat()
+                        ))
+                        
+                        # Record successful import
+                        imported_records.append(ImportedHoldingRecord(
+                            ticker=symbol.upper(),
+                            account_number=account_number,
+                            account_name=account_name,
+                            quantity=quantity,
+                            cost_basis=cost_basis or 0.0,
+                            current_value=current_value,
+                            row_number=row_number,
+                            status="success"
+                        ))
+                        total_records_imported += 1
+                        if account_number in account_summaries:
+                            account_summaries[account_number].records_imported += 1
+                        
+                    except Exception as e:
+                        error_msg = f"Row {row_number}: {str(e)}"
+                        logger.error(f"Error processing row {row_number}: {e}")
+                        errors.append(error_msg)
+                        total_records_failed += 1
+                        
+                        # Extract account for error tracking
+                        account_number = (row.get('Account Number', '') or '').strip()
+                        if account_number in account_summaries:
+                            account_summaries[account_number].records_failed += 1
+                
+                # Commit transaction
+                conn.commit()
+                logger.info(f"CSV import completed: {total_records_imported} imported, {total_records_skipped} skipped, {total_records_failed} failed")
+        
+        except Exception as e:
+            logger.error(f"CSV import failed: {e}")
+            errors.append(f"Import failed: {str(e)}")
+            return HoldingsImportResponse(
+                detected_accounts=[],
+                import_summary=HoldingsImportSummary(
+                    total_rows_processed=total_rows_processed,
+                    total_accounts_detected=0,
+                    total_records_imported=0,
+                    total_records_skipped=0,
+                    total_records_failed=total_rows_processed,
+                    total_existing_holdings_deleted=0,
+                    import_successful=False,
+                    account_summaries=[]
+                ),
+                imported_records=[],
+                errors=errors,
+                warnings=warnings
+            )
+        
+        # Update account summaries success status
+        for account_summary in account_summaries.values():
+            account_summary.import_successful = account_summary.records_imported > 0
+        
+        # Create overall import summary
+        import_summary = HoldingsImportSummary(
+            total_rows_processed=total_rows_processed,
+            total_accounts_detected=len(detected_accounts),
+            total_records_imported=total_records_imported,
+            total_records_skipped=total_records_skipped,
+            total_records_failed=total_records_failed,
+            total_existing_holdings_deleted=total_existing_holdings_deleted,
+            import_successful=total_records_imported > 0,
+            account_summaries=list(account_summaries.values())
+        )
+        
+        # Add warnings for any issues
+        if total_records_skipped > 0:
+            warnings.append(f"Skipped {total_records_skipped} non-stock entries (cash, options, pending activity)")
+        
+        if total_records_failed > 0:
+            warnings.append(f"Failed to import {total_records_failed} records due to data errors")
+        
+        return HoldingsImportResponse(
+            detected_accounts=list(detected_accounts.values()),
+            import_summary=import_summary,
+            imported_records=imported_records,
+            errors=errors,
+            warnings=warnings
+        )

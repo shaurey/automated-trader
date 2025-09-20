@@ -242,3 +242,180 @@ class Position {
     );
   }
 }
+
+// Holdings Import Models
+class DetectedAccount {
+  final String accountNumber;
+  final String? accountName;
+  final int recordCount;
+  final List<String> sampleTickers;
+
+  DetectedAccount({
+    required this.accountNumber,
+    this.accountName,
+    required this.recordCount,
+    required this.sampleTickers,
+  });
+
+  factory DetectedAccount.fromJson(Map<String, dynamic> json) {
+    return DetectedAccount(
+      accountNumber: json['account_number'] as String? ?? '',
+      accountName: json['account_name'] as String?,
+      recordCount: json['record_count'] as int? ?? 0,
+      sampleTickers: (json['sample_tickers'] as List?)
+          ?.map((ticker) => ticker.toString())
+          .toList() ?? [],
+    );
+  }
+}
+
+class ImportedHoldingRecord {
+  final String ticker;
+  final String accountNumber;
+  final String? accountName;
+  final double quantity;
+  final double costBasis;
+  final double? currentValue;
+  final int rowNumber;
+  final String status;
+  final String? errorMessage;
+
+  ImportedHoldingRecord({
+    required this.ticker,
+    required this.accountNumber,
+    this.accountName,
+    required this.quantity,
+    required this.costBasis,
+    this.currentValue,
+    required this.rowNumber,
+    this.status = 'success',
+    this.errorMessage,
+  });
+
+  factory ImportedHoldingRecord.fromJson(Map<String, dynamic> json) {
+    return ImportedHoldingRecord(
+      ticker: json['ticker'] as String? ?? '',
+      accountNumber: json['account_number'] as String? ?? '',
+      accountName: json['account_name'] as String?,
+      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
+      costBasis: (json['cost_basis'] as num?)?.toDouble() ?? 0.0,
+      currentValue: (json['current_value'] as num?)?.toDouble(),
+      rowNumber: json['row_number'] as int? ?? 0,
+      status: json['status'] as String? ?? 'success',
+      errorMessage: json['error_message'] as String?,
+    );
+  }
+}
+
+class AccountImportSummary {
+  final String accountNumber;
+  final String? accountName;
+  final int totalRowsProcessed;
+  final int recordsImported;
+  final int recordsSkipped;
+  final int recordsFailed;
+  final int existingHoldingsDeleted;
+  final bool importSuccessful;
+
+  AccountImportSummary({
+    required this.accountNumber,
+    this.accountName,
+    required this.totalRowsProcessed,
+    required this.recordsImported,
+    required this.recordsSkipped,
+    required this.recordsFailed,
+    required this.existingHoldingsDeleted,
+    required this.importSuccessful,
+  });
+
+  factory AccountImportSummary.fromJson(Map<String, dynamic> json) {
+    return AccountImportSummary(
+      accountNumber: json['account_number'] as String? ?? '',
+      accountName: json['account_name'] as String?,
+      totalRowsProcessed: json['total_rows_processed'] as int? ?? 0,
+      recordsImported: json['records_imported'] as int? ?? 0,
+      recordsSkipped: json['records_skipped'] as int? ?? 0,
+      recordsFailed: json['records_failed'] as int? ?? 0,
+      existingHoldingsDeleted: json['existing_holdings_deleted'] as int? ?? 0,
+      importSuccessful: json['import_successful'] as bool? ?? false,
+    );
+  }
+}
+
+class HoldingsImportSummary {
+  final int totalRowsProcessed;
+  final int totalAccountsDetected;
+  final int totalRecordsImported;
+  final int totalRecordsSkipped;
+  final int totalRecordsFailed;
+  final int totalExistingHoldingsDeleted;
+  final bool importSuccessful;
+  final List<AccountImportSummary> accountSummaries;
+
+  HoldingsImportSummary({
+    required this.totalRowsProcessed,
+    required this.totalAccountsDetected,
+    required this.totalRecordsImported,
+    required this.totalRecordsSkipped,
+    required this.totalRecordsFailed,
+    required this.totalExistingHoldingsDeleted,
+    required this.importSuccessful,
+    required this.accountSummaries,
+  });
+
+  factory HoldingsImportSummary.fromJson(Map<String, dynamic> json) {
+    return HoldingsImportSummary(
+      totalRowsProcessed: json['total_rows_processed'] as int? ?? 0,
+      totalAccountsDetected: json['total_accounts_detected'] as int? ?? 0,
+      totalRecordsImported: json['total_records_imported'] as int? ?? 0,
+      totalRecordsSkipped: json['total_records_skipped'] as int? ?? 0,
+      totalRecordsFailed: json['total_records_failed'] as int? ?? 0,
+      totalExistingHoldingsDeleted: json['total_existing_holdings_deleted'] as int? ?? 0,
+      importSuccessful: json['import_successful'] as bool? ?? false,
+      accountSummaries: (json['account_summaries'] as List?)
+          ?.map((summary) => AccountImportSummary.fromJson(summary))
+          .toList() ?? [],
+    );
+  }
+}
+
+class HoldingsImportResponse {
+  final List<DetectedAccount> detectedAccounts;
+  final HoldingsImportSummary importSummary;
+  final List<ImportedHoldingRecord> importedRecords;
+  final List<String> errors;
+  final List<String> warnings;
+  final DateTime timestamp;
+
+  HoldingsImportResponse({
+    required this.detectedAccounts,
+    required this.importSummary,
+    required this.importedRecords,
+    required this.errors,
+    required this.warnings,
+    required this.timestamp,
+  });
+
+  factory HoldingsImportResponse.fromJson(Map<String, dynamic> json) {
+    return HoldingsImportResponse(
+      detectedAccounts: (json['detected_accounts'] as List?)
+          ?.map((account) => DetectedAccount.fromJson(account))
+          .toList() ?? [],
+      importSummary: HoldingsImportSummary.fromJson(
+        json['import_summary'] as Map<String, dynamic>? ?? {},
+      ),
+      importedRecords: (json['imported_records'] as List?)
+          ?.map((record) => ImportedHoldingRecord.fromJson(record))
+          .toList() ?? [],
+      errors: (json['errors'] as List?)
+          ?.map((error) => error.toString())
+          .toList() ?? [],
+      warnings: (json['warnings'] as List?)
+          ?.map((warning) => warning.toString())
+          .toList() ?? [],
+      timestamp: json['timestamp'] != null
+          ? DateTime.parse(json['timestamp'] as String)
+          : DateTime.now(),
+    );
+  }
+}
